@@ -5,12 +5,6 @@
 
 import { Observable, Observer } from './observable.js'
 
-export type Subject<T, E = unknown> = Observable<T, E> & {
-  next: (x: T) => void
-  error: (e: E) => void
-  complete: () => void
-}
-
 /**
  * Creates a Subject that multicasts to multiple subscribers.
  */
@@ -41,15 +35,31 @@ export const subject = <T, E = unknown>(): Subject<T, E> => {
 }
 
 /**
+ * A Subject is both an Observable and an Observer.
+ * It multicasts values to all subscribed observers.
+ *
+ * @typeParam T - The type of values emitted
+ * @typeParam E - The type of error that may be emitted
+ */
+export type Subject<T, E = unknown> = Observable<T, E> & {
+  /** Emit a value to all subscribers */
+  next: (x: T) => void
+  /** Emit an error to all subscribers and close the subject */
+  error: (e: E) => void
+  /** Complete all subscriptions and close the subject */
+  complete: () => void
+}
+
+/**
  * Creates a ReplaySubject that buffers values and replays them to new subscribers.
  *
  * @param bufferSize Maximum number of values to buffer (default: Infinity)
  */
-export const replaySubject = <T, E = unknown>(bufferSize = Infinity): Subject<T, E> => {
+export const replaySubject = <T, E = unknown>(bufferSize = Infinity): ReplaySubject<T, E> => {
   const observers = new Set<Observer<T, E>>()
   const buffer: T[] = []
   let closed = false
-  const subject: Subject<T, E> = (observer: Observer<T, E>) => {
+  const subject: ReplaySubject<T, E> = (observer: Observer<T, E>) => {
     buffer.forEach((x) => observer.next(x))
     if (closed) {
       observer.complete()
@@ -76,7 +86,23 @@ export const replaySubject = <T, E = unknown>(bufferSize = Infinity): Subject<T,
     observers.forEach((o) => o.complete())
     observers.clear()
   }
+  subject.bufferSize = bufferSize
+  subject.getBuffer = () => [...buffer]
   return subject
+}
+
+/**
+ * A ReplaySubject buffers emitted values and replays them to new subscribers.
+ * Extends Subject with buffer access capabilities.
+ *
+ * @typeParam T - The type of values emitted
+ * @typeParam E - The type of error that may be emitted
+ */
+export type ReplaySubject<T, E = unknown> = Subject<T, E> & {
+  /** Maximum number of values stored in the buffer */
+  bufferSize: number
+  /** Returns a copy of the current buffer contents */
+  getBuffer: () => T[]
 }
 
 /**
@@ -84,11 +110,11 @@ export const replaySubject = <T, E = unknown>(bufferSize = Infinity): Subject<T,
  *
  * @param initialValue The initial value
  */
-export const behaviorSubject = <T, E = unknown>(initialValue: T): Subject<T, E> => {
+export const behaviorSubject = <T, E = unknown>(initialValue: T): BehaviorSubject<T, E> => {
   const observers = new Set<Observer<T, E>>()
   let current = initialValue
   let closed = false
-  const subject: Subject<T, E> = (observer: Observer<T, E>) => {
+  const subject: BehaviorSubject<T, E> = (observer: Observer<T, E>) => {
     observer.next(current)
     if (closed) {
       observer.complete()
@@ -114,5 +140,18 @@ export const behaviorSubject = <T, E = unknown>(initialValue: T): Subject<T, E> 
     observers.forEach((o) => o.complete())
     observers.clear()
   }
+  subject.getValue = () => current
   return subject
+}
+
+/**
+ * A BehaviorSubject holds a current value and emits it immediately to new subscribers.
+ * Extends Subject with synchronous value access.
+ *
+ * @typeParam T - The type of values emitted
+ * @typeParam E - The type of error that may be emitted
+ */
+export type BehaviorSubject<T, E = unknown> = Subject<T, E> & {
+  /** Returns the current value synchronously */
+  getValue: () => T
 }
