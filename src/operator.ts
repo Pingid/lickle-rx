@@ -358,7 +358,7 @@ export const takeWhile: <A>(
  * @param values The values to prepend
  * @return A function that returns an Observable with the values prepended
  */
-export const startWith: <A>(...values: A[]) => (source: Observable<A>) => Observable<A> =
+export const startWith: <A, B>(...values: A[]) => (source: Observable<B>) => Observable<A | B> =
   (...values) =>
   (source) =>
   (observer) => {
