@@ -19,3 +19,12 @@ export type ObservableError<T> = T extends Observable<any, infer E> ? E : never
  * @returns The observable.
  */
 export const observable = <T, E = unknown>(cb: (observer: Observer<T, E>) => Unsubscribe): Observable<T, E> => cb
+
+/**
+ * Subscribes to an observable.
+ * @param observable The observable to subscribe to.
+ * @param observer The observer to subscribe to the observable.
+ * @returns The unsubscribe function.
+ */
+export const subscribe = <T, E = unknown>(observable: Observable<T, E>, observer: Observer<T, E>): Unsubscribe =>
+  observable(observer)
