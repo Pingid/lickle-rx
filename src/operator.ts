@@ -23,7 +23,7 @@ export const map: <A, B>(transform: (a: A) => B) => (source: Observable<A>) => O
           const value = transform(x)
           observer.next(value)
         } catch (err) {
-          observer.error?.(err)
+          observer.error(err)
         }
       },
       ...forward(observer),
@@ -43,7 +43,7 @@ export const switchMap: <A, B>(transform: (a: A) => Observable<B>) => (source: O
     let hasActiveInner = false
     let sourceCompleted = false
     const tryComplete = () => {
-      if (sourceCompleted && !hasActiveInner) observer.complete?.()
+      if (sourceCompleted && !hasActiveInner) observer.complete()
     }
     const sourceUnsub = source({
       next: (x) => {
@@ -59,7 +59,7 @@ export const switchMap: <A, B>(transform: (a: A) => Observable<B>) => (source: O
             },
           })
         } catch (err) {
-          observer.error?.(err)
+          observer.error(err)
         }
       },
       ...forwardError(observer),
@@ -85,7 +85,7 @@ export const mergeMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Ob
     let activeCount = 0
     let sourceCompleted = false
     const tryComplete = () => {
-      if (sourceCompleted && activeCount === 0) observer.complete?.()
+      if (sourceCompleted && activeCount === 0) observer.complete()
     }
     const sourceSub = source({
       next: (x) => {
@@ -103,7 +103,7 @@ export const mergeMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Ob
           })
           innerSubs.add(innerUnsub)
         } catch (err) {
-          observer.error?.(err)
+          observer.error(err)
         }
       },
       ...forwardError(observer),
@@ -136,7 +136,7 @@ export const concatMap =
     let active = false
     let sourceCompleted = false
     const tryComplete = () => {
-      if (sourceCompleted && !active && queue.length === 0) observer.complete?.()
+      if (sourceCompleted && !active && queue.length === 0) observer.complete()
     }
     const processNext = () => {
       if (active || queue.length === 0) {
@@ -156,7 +156,7 @@ export const concatMap =
         })
       } catch (err) {
         active = false
-        observer.error?.(err)
+        observer.error(err)
       }
     }
     const sourceSub = source({
@@ -197,7 +197,7 @@ export const filter: {
       try {
         if (pred(x)) observer.next(x)
       } catch (err) {
-        observer.error?.(err)
+        observer.error(err)
       }
     },
     ...forward(observer),
@@ -222,7 +222,7 @@ export const scan: <A, B>(initial: A, accumulator: (a: A, b: B) => A) => (source
           c = accumulator(c, x)
           observer.next(c)
         } catch (err) {
-          observer.error?.(err)
+          observer.error(err)
         }
       },
       ...forward(observer),
@@ -245,7 +245,7 @@ export const tap: <A>(operator: (a: A) => any) => (source: Observable<A>) => Obs
           sideEffect(x)
           observer.next(x)
         } catch (err) {
-          observer.error?.(err)
+          observer.error(err)
         }
       },
       ...forward(observer),
@@ -268,14 +268,15 @@ export const take: <A>(count: number) => (source: Observable<A>) => Observable<A
           emitted++
           observer.next(x)
           if (emitted >= count) {
-            observer.complete?.()
+            observer.complete()
             // If synchronous, we can't 'unsub' here safely.
             // We rely on the returned function to clean up.
             if (unsub) unsub()
           }
         }
       },
-      ...forwardError(observer),
+      error: observer.error,
+      complete: () => {},
     })
 
     // If we finished synchronously, unsub immediately
@@ -300,15 +301,17 @@ export const takeUntil: <A>(notifier: Observable<any>) => (source: Observable<A>
       next: (x) => {
         if (!completed) observer.next(x)
       },
-      ...forwardError(observer),
+      ...forward(observer),
     })
     notifierUnsub = notifier({
       next: () => {
         completed = true
         sourceUnsub()
         notifierUnsub()
-        observer.complete?.()
+        observer.complete()
       },
+      error: observer.error,
+      complete: () => {},
     })
     return () => {
       completed = true
@@ -337,13 +340,14 @@ export const takeWhile: <A>(
         } else {
           taking = false
           unsubscribe()
-          observer.complete?.()
+          observer.complete()
         }
       } catch (err) {
-        observer.error?.(err)
+        observer.error(err)
       }
     },
-    ...forwardError(observer),
+    error: observer.error,
+    complete: () => {},
   })
   return unsubscribe
 }
@@ -362,7 +366,7 @@ export const startWith: <A>(...values: A[]) => (source: Observable<A>) => Observ
       try {
         observer.next(value)
       } catch (err) {
-        observer.error?.(err)
+        observer.error(err)
         return () => {}
       }
     }
@@ -390,7 +394,7 @@ export const distinctUntilChanged =
             observer.next(x)
           }
         } catch (err) {
-          observer.error?.(err)
+          observer.error(err)
         }
       },
       ...forward(observer),
@@ -418,6 +422,8 @@ export const withLatestFrom =
           hasValue[i] = true
           if (!ready) ready = hasValue.every(Boolean)
         },
+        error: observer.error,
+        complete: () => {},
       }),
     )
     const sourceUnsub = source({
@@ -459,7 +465,7 @@ export const debounceTime =
       complete: () => {
         if (timeoutId !== undefined) clearTimeout(timeoutId)
         if (hasValue) observer.next(lastValue!)
-        observer.complete?.()
+        observer.complete()
       },
     })
     return () => {
@@ -505,7 +511,7 @@ export const delay =
     let pending = 0
     let sourceCompleted = false
     const tryComplete = () => {
-      if (sourceCompleted && pending === 0) observer.complete?.()
+      if (sourceCompleted && pending === 0) observer.complete()
     }
     const sourceUnsub = source({
       next: (x) => {
@@ -553,7 +559,7 @@ export const bufferTime =
       complete: () => {
         clearInterval(intervalId)
         if (buffer.length > 0) observer.next(buffer)
-        observer.complete?.()
+        observer.complete()
       },
     })
     return () => {
@@ -579,8 +585,8 @@ export const share =
       if (refCount++ === 0) {
         sourceUnsub = source({
           next: (x) => subject.next(x),
-          error: (e) => subject.error?.(e),
-          complete: () => subject.complete?.(),
+          error: (e) => subject.error(e),
+          complete: () => subject.complete(),
         })
       }
       return () => {
@@ -610,8 +616,8 @@ export const shareReplay =
       if (refCount++ === 0) {
         sourceUnsub = source({
           next: (x) => subject.next(x),
-          error: (e) => subject.error?.(e),
-          complete: () => subject.complete?.(),
+          error: (e) => subject.error(e),
+          complete: () => subject.complete(),
         })
       }
       return () => {
@@ -625,7 +631,5 @@ export const shareReplay =
   }
 
 // ---------------- Utility Functions ----------------
-const forwardError = <E>(o: Observer<any, E>): Pick<Observer<any, E>, 'error'> => (o.error ? { error: o.error } : {})
-const forwardComplete = <E>(o: Observer<any, E>): Pick<Observer<any, E>, 'complete'> =>
-  o.complete ? { complete: o.complete } : {}
-const forward = <E>(o: Observer<any, E>) => ({ ...forwardError(o), ...forwardComplete(o) })
+const forwardError = <E>(o: Observer<any, E>): Pick<Observer<any, E>, 'error'> => ({ error: o.error })
+const forward = <E>(o: Observer<any, E>) => ({ error: o.error, complete: o.complete })

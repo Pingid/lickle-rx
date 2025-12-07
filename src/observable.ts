@@ -6,8 +6,8 @@
 export type Unsubscribe = () => void
 export type Observer<T, E = unknown> = {
   next: (value: T) => void
-  error?: (err: E) => void
-  complete?: () => void
+  error: (err: E) => void
+  complete: () => void
 }
 export type Observable<T, E = unknown> = (observer: Observer<T, E>) => Unsubscribe
 export type ObservableValue<T> = T extends Observable<infer D> ? D : never
@@ -26,5 +26,13 @@ export const observable = <T, E = unknown>(cb: (observer: Observer<T, E>) => Uns
  * @param observer The observer to subscribe to the observable.
  * @returns The unsubscribe function.
  */
-export const subscribe = <T, E = unknown>(observable: Observable<T, E>, observer: Observer<T, E>): Unsubscribe =>
-  observable(observer)
+export const subscribe = <T, E = unknown>(
+  observable: Observable<T, E>,
+  observer: Partial<Observer<T, E>>,
+): Unsubscribe =>
+  observable({
+    next: () => {},
+    error: () => {},
+    complete: () => {},
+    ...observer,
+  })

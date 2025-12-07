@@ -7,8 +7,8 @@ import { Observable, Observer } from './observable.js'
 
 export type Subject<T, E = unknown> = Observable<T, E> & {
   next: (x: T) => void
-  error?: (e: E) => void
-  complete?: () => void
+  error: (e: E) => void
+  complete: () => void
 }
 
 /**
@@ -28,13 +28,13 @@ export const createSubject = <T, E = unknown>(): Subject<T, E> => {
   subject.error = (e: E) => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.error?.(e))
+    observers.forEach((o) => o.error(e))
     observers.clear()
   }
   subject.complete = () => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.complete?.())
+    observers.forEach((o) => o.complete())
     observers.clear()
   }
   return subject
@@ -52,7 +52,7 @@ export const createReplaySubject = <T, E = unknown>(bufferSize = Infinity): Subj
   const subject: Subject<T, E> = (observer: Observer<T, E>) => {
     buffer.forEach((x) => observer.next(x))
     if (closed) {
-      observer.complete?.()
+      observer.complete()
       return () => {}
     }
     observers.add(observer)
@@ -67,13 +67,13 @@ export const createReplaySubject = <T, E = unknown>(bufferSize = Infinity): Subj
   subject.error = (e: E) => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.error?.(e))
+    observers.forEach((o) => o.error(e))
     observers.clear()
   }
   subject.complete = () => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.complete?.())
+    observers.forEach((o) => o.complete())
     observers.clear()
   }
   return subject
@@ -91,7 +91,7 @@ export const createBehaviorSubject = <T, E = unknown>(initialValue: T): Subject<
   const subject: Subject<T, E> = (observer: Observer<T, E>) => {
     observer.next(current)
     if (closed) {
-      observer.complete?.()
+      observer.complete()
       return () => {}
     }
     observers.add(observer)
@@ -105,13 +105,13 @@ export const createBehaviorSubject = <T, E = unknown>(initialValue: T): Subject<
   subject.error = (e: E) => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.error?.(e))
+    observers.forEach((o) => o.error(e))
     observers.clear()
   }
   subject.complete = () => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.complete?.())
+    observers.forEach((o) => o.complete())
     observers.clear()
   }
   return subject

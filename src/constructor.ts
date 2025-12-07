@@ -16,7 +16,7 @@ export const of: <T extends any[]>(...args: T) => Observable<T[number]> =
   (observer: Observer<any>) => {
     let subbed = true
     args.forEach((x) => subbed && observer.next(x))
-    if (subbed) observer.complete?.()
+    if (subbed) observer.complete()
     return () => (subbed = false)
   }
 
@@ -33,10 +33,10 @@ export const fromPromise = <T, E = unknown>(promise: Promise<T>): Observable<T, 
       .then((value) => {
         if (!cancelled) {
           observer.next(value)
-          observer.complete?.()
+          observer.complete()
         }
       })
-      .catch((err) => !cancelled && observer.error?.(err))
+      .catch((err) => !cancelled && observer.error(err))
     return () => (cancelled = true)
   }
 }
@@ -77,7 +77,7 @@ export const timer = (delay: number, period?: number): Observable<number> => {
       if (period !== undefined) {
         intervalId = setInterval(() => observer.next(count++), period)
       } else {
-        observer.complete?.()
+        observer.complete()
       }
     }, delay)
 
@@ -104,7 +104,7 @@ export const never = <T = never>(): Observable<T> => {
  */
 export const empty = <T = never>(): Observable<T> => {
   return (observer) => {
-    observer.complete?.()
+    observer.complete()
     return () => {}
   }
 }

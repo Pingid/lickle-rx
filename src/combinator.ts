@@ -3,11 +3,8 @@
  * @module
  */
 
-import { Observable, Observer, ObservableValue } from './observable.js'
+import { Observable, ObservableValue } from './observable.js'
 import { pipe } from './util.js'
-
-const forwardError = <E>(observer: Observer<any, E>): Pick<Observer<any, E>, 'error'> =>
-  observer.error ? { error: observer.error } : {}
 
 /**
  * Creates an output Observable which concurrently emits all values from every
@@ -20,7 +17,7 @@ export const merge: <A extends Observable<any>[]>(...sources: A) => Observable<O
   (...sources) =>
   (observer) =>
     pipe(
-      sources.map((source) => source({ next: observer.next, ...forwardError(observer) })),
+      sources.map((source) => source({ next: observer.next, error: observer.error, complete: () => {} })),
       (unsubs) => () => void unsubs.forEach((fn) => fn()),
     )
 
@@ -47,7 +44,8 @@ export const combineLatest = <T extends Observable<any>[]>(
           if (!ready) ready = hasValue.every(Boolean)
           if (ready) observer.next([...values] as any)
         },
-        ...forwardError(observer),
+        error: observer.error,
+        complete: () => {},
       }),
     )
     return () => unsubs.forEach((fn) => fn())
@@ -77,7 +75,8 @@ export const zip = <T extends Observable<any>[]>(
           buffers[i]!.push(x)
           tryEmit()
         },
-        ...forwardError(observer),
+        error: observer.error,
+        complete: () => {},
       }),
     )
     return () => unsubs.forEach((fn) => fn())
@@ -100,12 +99,12 @@ export const concat = <T>(...sources: Observable<T>[]): Observable<T> => {
     let currentUnsub: () => void = () => {}
     const subscribeNext = () => {
       if (currentIndex >= sources.length) {
-        observer.complete?.()
+        observer.complete()
         return
       }
       currentUnsub = sources[currentIndex]!({
         next: observer.next,
-        ...forwardError(observer),
+        error: observer.error,
         complete: () => {
           currentIndex++
           subscribeNext()
@@ -139,8 +138,8 @@ export const race = <T>(...sources: Observable<T>[]): Observable<T> => {
             }
             if (winnerIndex === i) observer.next(x)
           },
-          ...forwardError(observer),
-          ...(observer.complete ? { complete: observer.complete } : {}),
+          error: observer.error,
+          complete: observer.complete,
         }),
       )
     }
