@@ -1,5 +1,13 @@
-import { Observable, ObservableValue } from './observable.js'
+/**
+ * This module contains functions to combine multiple observables.
+ * @module
+ */
+
+import { Observable, Observer, ObservableValue } from './observable.js'
 import { pipe } from './util.js'
+
+const forwardError = <E>(observer: Observer<any, E>): Pick<Observer<any, E>, 'error'> =>
+  observer.error ? { error: observer.error } : {}
 
 /**
  * Creates an output Observable which concurrently emits all values from every
@@ -9,11 +17,11 @@ import { pipe } from './util.js'
  * @return Observable that emits items from all input Observables.
  */
 export const merge: <A extends Observable<any>[]>(...sources: A) => Observable<ObservableValue<A[number]>> =
-  (...oas) =>
-  (sub) =>
+  (...sources) =>
+  (observer) =>
     pipe(
-      oas.map((x) => x(sub as any)),
-      (s) => () => void s.forEach((fn) => fn()),
+      sources.map((source) => source({ next: observer.next, ...forwardError(observer) })),
+      (unsubs) => () => void unsubs.forEach((fn) => fn()),
     )
 
 /**
@@ -27,16 +35,19 @@ export const merge: <A extends Observable<any>[]>(...sources: A) => Observable<O
 export const combineLatest = <T extends Observable<any>[]>(
   ...sources: T
 ): Observable<{ [K in keyof T]: ObservableValue<T[K]> }> => {
-  return (sub) => {
+  return (observer) => {
     const values: any[] = new Array(sources.length)
     const hasValue: boolean[] = new Array(sources.length).fill(false)
     let ready = false
     const unsubs = sources.map((source, i) =>
-      source((x) => {
-        values[i] = x
-        hasValue[i] = true
-        if (!ready) ready = hasValue.every(Boolean)
-        if (ready) sub([...values] as any)
+      source({
+        next: (x) => {
+          values[i] = x
+          hasValue[i] = true
+          if (!ready) ready = hasValue.every(Boolean)
+          if (ready) observer.next([...values] as any)
+        },
+        ...forwardError(observer),
       }),
     )
     return () => unsubs.forEach((fn) => fn())
@@ -53,17 +64,20 @@ export const combineLatest = <T extends Observable<any>[]>(
 export const zip = <T extends Observable<any>[]>(
   ...sources: T
 ): Observable<{ [K in keyof T]: ObservableValue<T[K]> }> => {
-  return (sub) => {
+  return (observer) => {
     const buffers: any[][] = sources.map(() => [])
     const tryEmit = () => {
       if (buffers.every((b) => b.length > 0)) {
-        sub(buffers.map((b) => b.shift()!) as any)
+        observer.next(buffers.map((b) => b.shift()!) as any)
       }
     }
     const unsubs = sources.map((source, i) =>
-      source((x) => {
-        buffers[i]!.push(x)
-        tryEmit()
+      source({
+        next: (x) => {
+          buffers[i]!.push(x)
+          tryEmit()
+        },
+        ...forwardError(observer),
       }),
     )
     return () => unsubs.forEach((fn) => fn())
@@ -74,30 +88,32 @@ export const zip = <T extends Observable<any>[]>(
  * Creates an output Observable which sequentially emits all values from the first
  * given Observable and then moves on to the next.
  *
- * Note: Without completion signals, this subscribes to all sources immediately
- * but only forwards values from sources whose predecessors have emitted.
- * For true sequential behavior, use synchronous observables.
+ * Subscribes to each source only after the previous one completes.
+ * If a source never completes, subsequent sources will not be subscribed.
  *
  * @param sources Input Observables to concatenate.
  * @return Observable that emits values from sources in sequence.
  */
 export const concat = <T>(...sources: Observable<T>[]): Observable<T> => {
-  return (sub) => {
-    const unsubs: (() => void)[] = []
+  return (observer) => {
     let currentIndex = 0
-    sources.forEach((source, i) => {
-      unsubs.push(
-        source((x) => {
-          if (i === currentIndex) {
-            sub(x)
-          } else if (i === currentIndex + 1) {
-            currentIndex = i
-            sub(x)
-          }
-        }),
-      )
-    })
-    return () => unsubs.forEach((fn) => fn())
+    let currentUnsub: () => void = () => {}
+    const subscribeNext = () => {
+      if (currentIndex >= sources.length) {
+        observer.complete?.()
+        return
+      }
+      currentUnsub = sources[currentIndex]!({
+        next: observer.next,
+        ...forwardError(observer),
+        complete: () => {
+          currentIndex++
+          subscribeNext()
+        },
+      })
+    }
+    subscribeNext()
+    return () => currentUnsub()
   }
 }
 
@@ -109,17 +125,25 @@ export const concat = <T>(...sources: Observable<T>[]): Observable<T> => {
  * @return Observable that mirrors the first source to emit.
  */
 export const race = <T>(...sources: Observable<T>[]): Observable<T> => {
-  return (sub) => {
+  return (observer) => {
     let winnerIndex: number | null = null
-    const unsubs = sources.map((source, i) =>
-      source((x) => {
-        if (winnerIndex === null) {
-          winnerIndex = i
-          unsubs.forEach((fn, j) => j !== i && fn())
-        }
-        if (winnerIndex === i) sub(x)
-      }),
-    )
+    const unsubs: (() => void)[] = []
+    for (let i = 0; i < sources.length; i++) {
+      if (winnerIndex !== null) break
+      unsubs.push(
+        sources[i]!({
+          next: (x) => {
+            if (winnerIndex === null) {
+              winnerIndex = i
+              unsubs.forEach((fn, j) => j !== i && fn())
+            }
+            if (winnerIndex === i) observer.next(x)
+          },
+          ...forwardError(observer),
+          ...(observer.complete ? { complete: observer.complete } : {}),
+        }),
+      )
+    }
     return () => unsubs.forEach((fn) => fn())
   }
 }

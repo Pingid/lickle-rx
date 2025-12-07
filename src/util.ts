@@ -1,3 +1,8 @@
+/**
+ * Utility functions for composing observables.
+ * @module
+ */
+
 import { Unsubscribe } from './observable.js'
 
 export const pipe: {

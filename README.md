@@ -31,7 +31,7 @@ const doubled = pipe(
 )
 
 // Subscribe to receive values
-doubled((value) => console.log(value))
+doubled({ next: (value) => console.log(value) })
 // Output: 4, 8
 ```
 
@@ -41,10 +41,16 @@ doubled((value) => console.log(value))
 
 ### Observable
 
-An `Observable` is a function that accepts a subscriber callback and returns an unsubscribe function:
+An `Observable` is a function that accepts an observer and returns an unsubscribe function:
 
 ```ts
-type Observable<T> = (subscriber: (x: T) => void) => Unsubscribe
+type Observer<T, E = unknown> = {
+  next: (value: T) => void
+  error?: (err: E) => void
+  complete?: () => void
+}
+
+type Observable<T, E = unknown> = (observer: Observer<T, E>) => Unsubscribe
 ```
 
 ### Subject
@@ -56,8 +62,8 @@ import { createSubject } from '@lickle/rx'
 
 const subject = createSubject<number>()
 
-subject((x) => console.log('Subscriber 1:', x))
-subject((x) => console.log('Subscriber 2:', x))
+subject({ next: (x) => console.log('Subscriber 1:', x) })
+subject({ next: (x) => console.log('Subscriber 2:', x) })
 
 subject.next(42) // Both subscribers receive 42
 ```
@@ -69,7 +75,7 @@ subject.next(42) // Both subscribers receive 42
 Create observables from various sources:
 
 ```ts
-import { of, from, interval, timer, fromEvent } from '@lickle/rx'
+import { of, from, interval, timer, fromDomEvent } from '@lickle/rx'
 
 // From values
 of(1, 2, 3)
@@ -82,7 +88,7 @@ interval(1000) // emit every second
 timer(1000, 500) // emit after 1s, then every 500ms
 
 // From DOM events
-fromEvent(button, 'click')
+fromDomEvent(button, 'click')
 ```
 
 ---

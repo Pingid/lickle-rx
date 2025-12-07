@@ -1,3 +1,8 @@
+/**
+ * A minimal reactive extensions library.
+ * @module
+ */
+
 export * from './browser.js'
 export * from './combinator.js'
 export * from './constructor.js'

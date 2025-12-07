@@ -1,17 +1,42 @@
-import { Observable } from './observable.js'
+/**
+ * Subjects for multicasting values to multiple subscribers.
+ * @module
+ */
 
-export type Subject<T> = Observable<T> & { next: (x: T) => void }
+import { Observable, Observer } from './observable.js'
+
+export type Subject<T, E = unknown> = Observable<T, E> & {
+  next: (x: T) => void
+  error?: (e: E) => void
+  complete?: () => void
+}
 
 /**
  * Creates a Subject that multicasts to multiple subscribers.
  */
-export const createSubject = <T>(): Subject<T> => {
-  const subscribers = new Set<(x: T) => void>()
-  const subject: Subject<T> = (sub: (x: T) => void) => {
-    subscribers.add(sub)
-    return () => subscribers.delete(sub)
+export const createSubject = <T, E = unknown>(): Subject<T, E> => {
+  const observers = new Set<Observer<T, E>>()
+  let closed = false
+  const subject: Subject<T, E> = (observer: Observer<T, E>) => {
+    if (closed) return () => {}
+    observers.add(observer)
+    return () => observers.delete(observer)
   }
-  subject.next = (x: T) => subscribers.forEach((sub) => sub(x))
+  subject.next = (x: T) => {
+    if (!closed) observers.forEach((o) => o.next(x))
+  }
+  subject.error = (e: E) => {
+    if (closed) return
+    closed = true
+    observers.forEach((o) => o.error?.(e))
+    observers.clear()
+  }
+  subject.complete = () => {
+    if (closed) return
+    closed = true
+    observers.forEach((o) => o.complete?.())
+    observers.clear()
+  }
   return subject
 }
 
@@ -20,18 +45,36 @@ export const createSubject = <T>(): Subject<T> => {
  *
  * @param bufferSize Maximum number of values to buffer (default: Infinity)
  */
-export const createReplaySubject = <T>(bufferSize = Infinity): Subject<T> => {
-  const subscribers = new Set<(x: T) => void>()
+export const createReplaySubject = <T, E = unknown>(bufferSize = Infinity): Subject<T, E> => {
+  const observers = new Set<Observer<T, E>>()
   const buffer: T[] = []
-  const subject: Subject<T> = (sub: (x: T) => void) => {
-    buffer.forEach((x) => sub(x))
-    subscribers.add(sub)
-    return () => subscribers.delete(sub)
+  let closed = false
+  const subject: Subject<T, E> = (observer: Observer<T, E>) => {
+    buffer.forEach((x) => observer.next(x))
+    if (closed) {
+      observer.complete?.()
+      return () => {}
+    }
+    observers.add(observer)
+    return () => observers.delete(observer)
   }
   subject.next = (x: T) => {
+    if (closed) return
     buffer.push(x)
     if (buffer.length > bufferSize) buffer.shift()
-    subscribers.forEach((sub) => sub(x))
+    observers.forEach((o) => o.next(x))
+  }
+  subject.error = (e: E) => {
+    if (closed) return
+    closed = true
+    observers.forEach((o) => o.error?.(e))
+    observers.clear()
+  }
+  subject.complete = () => {
+    if (closed) return
+    closed = true
+    observers.forEach((o) => o.complete?.())
+    observers.clear()
   }
   return subject
 }
@@ -41,17 +84,35 @@ export const createReplaySubject = <T>(bufferSize = Infinity): Subject<T> => {
  *
  * @param initialValue The initial value
  */
-export const createBehaviorSubject = <T>(initialValue: T): Subject<T> => {
-  const subscribers = new Set<(x: T) => void>()
+export const createBehaviorSubject = <T, E = unknown>(initialValue: T): Subject<T, E> => {
+  const observers = new Set<Observer<T, E>>()
   let current = initialValue
-  const subject: Subject<T> = (sub: (x: T) => void) => {
-    sub(current)
-    subscribers.add(sub)
-    return () => subscribers.delete(sub)
+  let closed = false
+  const subject: Subject<T, E> = (observer: Observer<T, E>) => {
+    observer.next(current)
+    if (closed) {
+      observer.complete?.()
+      return () => {}
+    }
+    observers.add(observer)
+    return () => observers.delete(observer)
   }
   subject.next = (x: T) => {
+    if (closed) return
     current = x
-    subscribers.forEach((sub) => sub(x))
+    observers.forEach((o) => o.next(x))
+  }
+  subject.error = (e: E) => {
+    if (closed) return
+    closed = true
+    observers.forEach((o) => o.error?.(e))
+    observers.clear()
+  }
+  subject.complete = () => {
+    if (closed) return
+    closed = true
+    observers.forEach((o) => o.complete?.())
+    observers.clear()
   }
   return subject
 }

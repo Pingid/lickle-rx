@@ -1,4 +1,9 @@
-import { Observable } from './observable.js'
+/**
+ * Functions to create observables from various sources.
+ * @module
+ */
+
+import { Observable, Observer } from './observable.js'
 
 /**
  * Converts the arguments to an observable sequence.
@@ -8,9 +13,10 @@ import { Observable } from './observable.js'
  */
 export const of: <T extends any[]>(...args: T) => Observable<T[number]> =
   (...args: any[]) =>
-  (sub: any) => {
+  (observer: Observer<any>) => {
     let subbed = true
-    args.forEach((x) => subbed && sub(x))
+    args.forEach((x) => subbed && observer.next(x))
+    if (subbed) observer.complete?.()
     return () => (subbed = false)
   }
 
@@ -20,10 +26,17 @@ export const of: <T extends any[]>(...args: T) => Observable<T[number]> =
  * @param promise The promise to convert
  * @return Observable that emits the resolved value and completes
  */
-export const fromPromise = <T>(promise: Promise<T>): Observable<T> => {
-  return (sub) => {
+export const fromPromise = <T, E = unknown>(promise: Promise<T>): Observable<T, E> => {
+  return (observer) => {
     let cancelled = false
-    promise.then((value) => !cancelled && sub(value)).catch(() => {}) // Silently ignore errors
+    promise
+      .then((value) => {
+        if (!cancelled) {
+          observer.next(value)
+          observer.complete?.()
+        }
+      })
+      .catch((err) => !cancelled && observer.error?.(err))
     return () => (cancelled = true)
   }
 }
@@ -40,9 +53,9 @@ export const from = fromPromise
  * @return Observable that emits incrementing numbers
  */
 export const interval = (period: number): Observable<number> => {
-  return (sub) => {
+  return (observer) => {
     let count = 0
-    const id = setInterval(() => sub(count++), period)
+    const id = setInterval(() => observer.next(count++), period)
     return () => clearInterval(id)
   }
 }
@@ -55,14 +68,16 @@ export const interval = (period: number): Observable<number> => {
  * @return Observable that emits after delay (and optionally at intervals)
  */
 export const timer = (delay: number, period?: number): Observable<number> => {
-  return (sub) => {
+  return (observer) => {
     let count = 0
     let intervalId: ReturnType<typeof setInterval> | undefined
 
     const timeoutId = setTimeout(() => {
-      sub(count++)
+      observer.next(count++)
       if (period !== undefined) {
-        intervalId = setInterval(() => sub(count++), period)
+        intervalId = setInterval(() => observer.next(count++), period)
+      } else {
+        observer.complete?.()
       }
     }, delay)
 
@@ -88,5 +103,35 @@ export const never = <T = never>(): Observable<T> => {
  * @return Observable that completes immediately
  */
 export const empty = <T = never>(): Observable<T> => {
-  return () => () => {}
+  return (observer) => {
+    observer.complete?.()
+    return () => {}
+  }
 }
+
+/**
+ * Creates an observable from DOM events.
+ *
+ * @param target The event target (Element, Document, Window, etc)
+ * @param eventName The name of the event to listen for
+ * @param options Optional event listener options
+ * @return Observable that emits events when they occur
+ */
+export const fromEvent: <T extends EventTarget>(
+  target: T,
+  eventName: string,
+  options?: EventTargetOptions<T>,
+) => Observable<EventTargetNext<T>> = (target: EventTarget, eventName: string, options?: any) => {
+  return (observer: any) => {
+    const handler = (e: any) => observer.next(e)
+    target.addEventListener(eventName, handler, options)
+    return () => target.removeEventListener(eventName, handler, options)
+  }
+}
+
+type EventTarget = {
+  addEventListener: (eventName: string, handler: (e: any) => void, options?: any) => void
+  removeEventListener: (eventName: string, handler: (e: any) => void, options?: any) => void
+}
+type EventTargetOptions<T extends EventTarget> = Parameters<T['addEventListener']>[2]
+type EventTargetNext<T extends EventTarget> = Parameters<Parameters<T['addEventListener']>[1]>[0]
