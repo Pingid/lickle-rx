@@ -4,7 +4,7 @@
  */
 
 import { Observable, type Observer } from './observable.js'
-import { createSubject, createReplaySubject } from './subject.js'
+import { subject, replaySubject } from './subject.js'
 
 /**
  * Applies a given transform function to each value emitted by the source
@@ -577,16 +577,16 @@ export const bufferTime =
 export const share =
   <A>() =>
   (source: Observable<A>): Observable<A> => {
-    const subject = createSubject<A>()
+    const subj = subject<A>()
     let refCount = 0
     let sourceUnsub: (() => void) | null = null
     return (observer) => {
-      const subjectUnsub = subject(observer)
+      const subjectUnsub = subj(observer)
       if (refCount++ === 0) {
         sourceUnsub = source({
-          next: (x) => subject.next(x),
-          error: (e) => subject.error(e),
-          complete: () => subject.complete(),
+          next: (x) => subj.next(x),
+          error: (e) => subj.error(e),
+          complete: () => subj.complete(),
         })
       }
       return () => {
@@ -608,7 +608,7 @@ export const share =
 export const shareReplay =
   <A>(bufferSize = 1) =>
   (source: Observable<A>): Observable<A> => {
-    const subject = createReplaySubject<A>(bufferSize)
+    const subject = replaySubject<A>(bufferSize)
     let refCount = 0
     let sourceUnsub: (() => void) | null = null
     return (observer) => {

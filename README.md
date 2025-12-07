@@ -58,9 +58,9 @@ type Observable<T, E = unknown> = (observer: Observer<T, E>) => Unsubscribe
 Subjects are observables that can be manually triggered:
 
 ```ts
-import { createSubject } from '@lickle/rx'
+import { subject } from '@lickle/rx'
 
-const subject = createSubject<number>()
+const subject = subject<number>()
 
 subject({ next: (x) => console.log('Subscriber 1:', x) })
 subject({ next: (x) => console.log('Subscriber 2:', x) })
@@ -150,16 +150,16 @@ race(obs1, obs2)
 Three types of subjects for different use cases:
 
 ```ts
-import { createSubject, createReplaySubject, createBehaviorSubject } from '@lickle/rx'
+import { subject, replaySubject, behaviorSubject } from '@lickle/rx'
 
 // Standard subject
-const subject = createSubject<number>()
+const subject = subject<number>()
 
 // Replay last N values to new subscribers
-const replay = createReplaySubject<number>(3)
+const replay = replaySubject<number>(3)
 
 // Behavior subject with initial value
-const behavior = createBehaviorSubject(0)
+const behavior = behaviorSubject(0)
 ```
 
 ---

@@ -14,7 +14,7 @@ export type Subject<T, E = unknown> = Observable<T, E> & {
 /**
  * Creates a Subject that multicasts to multiple subscribers.
  */
-export const createSubject = <T, E = unknown>(): Subject<T, E> => {
+export const subject = <T, E = unknown>(): Subject<T, E> => {
   const observers = new Set<Observer<T, E>>()
   let closed = false
   const subject: Subject<T, E> = (observer: Observer<T, E>) => {
@@ -45,7 +45,7 @@ export const createSubject = <T, E = unknown>(): Subject<T, E> => {
  *
  * @param bufferSize Maximum number of values to buffer (default: Infinity)
  */
-export const createReplaySubject = <T, E = unknown>(bufferSize = Infinity): Subject<T, E> => {
+export const replaySubject = <T, E = unknown>(bufferSize = Infinity): Subject<T, E> => {
   const observers = new Set<Observer<T, E>>()
   const buffer: T[] = []
   let closed = false
@@ -84,7 +84,7 @@ export const createReplaySubject = <T, E = unknown>(bufferSize = Infinity): Subj
  *
  * @param initialValue The initial value
  */
-export const createBehaviorSubject = <T, E = unknown>(initialValue: T): Subject<T, E> => {
+export const behaviorSubject = <T, E = unknown>(initialValue: T): Subject<T, E> => {
   const observers = new Set<Observer<T, E>>()
   let current = initialValue
   let closed = false
