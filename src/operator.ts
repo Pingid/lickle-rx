@@ -402,6 +402,30 @@ export const distinctUntilChanged =
   }
 
 /**
+ * Emits consecutive pairs of values from the source Observable.
+ * The first emission occurs after the second value is received.
+ *
+ * @return A function that returns an Observable emitting [previous, current] pairs
+ */
+export const pairwise =
+  <A>() =>
+  (source: Observable<A>): Observable<[A, A]> =>
+  (observer) => {
+    let hasPrevious = false
+    let previous: A
+    return source({
+      next: (x) => {
+        if (hasPrevious) {
+          observer.next([previous, x])
+        }
+        hasPrevious = true
+        previous = x
+      },
+      ...forward(observer),
+    })
+  }
+
+/**
  * Combines the source Observable with the latest values from other Observables.
  * Emits only when the source emits, and only after all others have emitted at least once.
  *
