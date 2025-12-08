@@ -26,7 +26,7 @@ export const of: <T extends any[]>(...args: T) => Observable<T[number]> =
  * @param promise The promise to convert
  * @return Observable that emits the resolved value and completes
  */
-export const fromPromise = <T, E = unknown>(promise: Promise<T>): Observable<T, E> => {
+export const fromPromise = <T, E = unknown>(promise: Promise<T>, onError?: (error: unknown) => E): Observable<T, E> => {
   return (observer) => {
     let cancelled = false
     promise
@@ -36,7 +36,11 @@ export const fromPromise = <T, E = unknown>(promise: Promise<T>): Observable<T, 
           observer.complete()
         }
       })
-      .catch((err) => !cancelled && observer.error(err))
+      .catch((err) => {
+        if (cancelled) return
+        if (onError) observer.error(onError(err))
+        else observer.error(err)
+      })
     return () => (cancelled = true)
   }
 }
