@@ -426,6 +426,26 @@ export const pairwise =
   }
 
 /**
+ * Emits [previous, current] pairs for each value, starting with [null, firstValue].
+ * Unlike pairwise(), this emits on the first value with null as the previous.
+ *
+ * @return A function that returns an Observable emitting [previous, current] pairs
+ */
+export const withPrevious =
+  <A, B = null>(initial: B) =>
+  (source: Observable<A>): Observable<[A | B, A]> =>
+  (observer) => {
+    let previous: B | A = initial ?? (null as B)
+    return source({
+      next: (x) => {
+        observer.next([previous, x])
+        previous = x
+      },
+      ...forward(observer),
+    })
+  }
+
+/**
  * Combines the source Observable with the latest values from other Observables.
  * Emits only when the source emits, and only after all others have emitted at least once.
  *
