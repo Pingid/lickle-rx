@@ -12,6 +12,14 @@ import { pipe } from './util.js'
  *
  * @param sources Input Observables to merge together.
  * @return Observable that emits items from all input Observables.
+ *
+ * @example
+ * ```ts
+ * const clicks$ = fromEvent(button, 'click')
+ * const keys$ = fromEvent(document, 'keydown')
+ * const both$ = merge(clicks$, keys$)
+ * subscribe(both$, (event) => console.log('user interaction'))
+ * ```
  */
 export const merge: <A extends Observable<any>[]>(...sources: A) => Observable<ObservableValue<A[number]>> =
   (...sources) =>
@@ -28,6 +36,16 @@ export const merge: <A extends Observable<any>[]>(...sources: A) => Observable<O
  *
  * @param sources Input Observables to combine.
  * @return Observable that emits arrays of the latest values.
+ *
+ * @example
+ * ```ts
+ * const width$ = subject<number>()
+ * const height$ = subject<number>()
+ * const area$ = pipe(
+ *   combineLatest(width$, height$),
+ *   map(([w, h]) => w * h)
+ * )
+ * ```
  */
 export const combineLatest = <T extends Observable<any>[]>(
   ...sources: T
@@ -58,6 +76,14 @@ export const combineLatest = <T extends Observable<any>[]>(
  *
  * @param sources Input Observables to zip together.
  * @return Observable that emits arrays of values at matching indices.
+ *
+ * @example
+ * ```ts
+ * const letters$ = of('a', 'b', 'c')
+ * const numbers$ = of(1, 2, 3)
+ * const zipped$ = zip(letters$, numbers$)
+ * subscribe(zipped$, console.log) // ['a', 1], ['b', 2], ['c', 3]
+ * ```
  */
 export const zip = <T extends Observable<any>[]>(
   ...sources: T
@@ -92,6 +118,14 @@ export const zip = <T extends Observable<any>[]>(
  *
  * @param sources Input Observables to concatenate.
  * @return Observable that emits values from sources in sequence.
+ *
+ * @example
+ * ```ts
+ * const first$ = of(1, 2)
+ * const second$ = of(3, 4)
+ * const all$ = concat(first$, second$)
+ * subscribe(all$, console.log) // 1, 2, 3, 4
+ * ```
  */
 export const concat = <T>(...sources: Observable<T>[]): Observable<T> => {
   return (observer) => {
@@ -122,6 +156,14 @@ export const concat = <T>(...sources: Observable<T>[]): Observable<T> => {
  *
  * @param sources Input Observables to race.
  * @return Observable that mirrors the first source to emit.
+ *
+ * @example
+ * ```ts
+ * const fast$ = timer(100).pipe(map(() => 'fast'))
+ * const slow$ = timer(500).pipe(map(() => 'slow'))
+ * const winner$ = race(fast$, slow$)
+ * subscribe(winner$, console.log) // 'fast'
+ * ```
  */
 export const race = <T>(...sources: Observable<T>[]): Observable<T> => {
   return (observer) => {

@@ -7,6 +7,14 @@ import { Observable, Observer } from './observable.js'
 
 /**
  * Creates a Subject that multicasts to multiple subscribers.
+ *
+ * @example
+ * ```ts
+ * const clicks$ = subject<MouseEvent>()
+ * subscribe(clicks$, (e) => console.log('A:', e.clientX))
+ * subscribe(clicks$, (e) => console.log('B:', e.clientX))
+ * clicks$.next(event) // both subscribers receive the event
+ * ```
  */
 export const subject = <T, E = unknown>(): Subject<T, E> => {
   const observers = new Set<Observer<T, E>>()
@@ -54,6 +62,16 @@ export type Subject<T, E = unknown> = Observable<T, E> & {
  * Creates a ReplaySubject that buffers values and replays them to new subscribers.
  *
  * @param bufferSize Maximum number of values to buffer (default: Infinity)
+ *
+ * @example
+ * ```ts
+ * const messages$ = replaySubject<string>(3)
+ * messages$.next('a')
+ * messages$.next('b')
+ * messages$.next('c')
+ * messages$.next('d')
+ * subscribe(messages$, console.log) // 'b', 'c', 'd' (last 3 values)
+ * ```
  */
 export const replaySubject = <T, E = unknown>(bufferSize = Infinity): ReplaySubject<T, E> => {
   const observers = new Set<Observer<T, E>>()
@@ -109,6 +127,14 @@ export type ReplaySubject<T, E = unknown> = Subject<T, E> & {
  * Creates a BehaviorSubject that holds a current value and emits it to new subscribers.
  *
  * @param initialValue The initial value
+ *
+ * @example
+ * ```ts
+ * const count$ = behaviorSubject(0)
+ * subscribe(count$, console.log) // 0 (initial value)
+ * count$.next(1) // logs 1
+ * console.log(count$.getValue()) // 1
+ * ```
  */
 export const behaviorSubject = <T, E = unknown>(initialValue: T): BehaviorSubject<T, E> => {
   const observers = new Set<Observer<T, E>>()
