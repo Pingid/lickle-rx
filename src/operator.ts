@@ -3,8 +3,8 @@
  * @module
  */
 
-import { subject, replaySubject, replayByKeySubject } from './subject.js'
-import { Observable, type Observer } from './observable.js'
+import { subject, replaySubject, replayByKeySubject, type Subject } from './subject.js'
+import { Observable, Unsubscribe, type Observer } from './observable.js'
 
 /**
  * Applies a given transform function to each value emitted by the source
@@ -290,6 +290,31 @@ export const catchError =
   }
 
 /**
+ * Call a function when the observable completes, errors, or is unsubscribed.
+ */
+export const finalize =
+  <A>(callback: () => void) =>
+  (source: Observable<A>): Observable<A> =>
+  (observer) => {
+    const unsub = source({
+      next: observer.next,
+      error: (e) => {
+        observer.error(e)
+        callback()
+      },
+      complete: () => {
+        observer.complete()
+        callback()
+      },
+    })
+
+    return () => {
+      unsub()
+      callback()
+    }
+  }
+
+/**
  * Maintains some state based on the values emited from a source observable and emits the state
  * when the source emits.
  *
@@ -394,33 +419,45 @@ export const tap =
  * subscribe(first3$, console.log) // 1, 2, 3
  * ```
  */
-export const take: <A>(count: number) => (source: Observable<A>) => Observable<A> =
-  (count) => (source) => (observer) => {
+export const take =
+  <A>(count: number) =>
+  (source: Observable<A>): Observable<A> =>
+  (observer) => {
     let emitted = 0
-    // We rely on the source checking if it is closed,
-    // or we ignore subsequent emissions.
-    const unsub = source({
+    let sourceUnsub: Unsubscribe | undefined
+    let completed = false
+
+    const complete = () => {
+      completed = true
+      observer.complete()
+      if (sourceUnsub) sourceUnsub()
+    }
+
+    sourceUnsub = source({
       next: (x) => {
         if (emitted < count) {
           emitted++
           observer.next(x)
           if (emitted >= count) {
-            observer.complete()
-            // If synchronous, we can't 'unsub' here safely.
-            // We rely on the returned function to clean up.
-            if (unsub) unsub()
+            complete()
           }
         }
       },
       error: observer.error,
-      complete: () => {},
+      complete: () => {
+        if (!completed) observer.complete()
+      },
     })
 
-    // If we finished synchronously, unsub immediately
-    if (emitted >= count) {
-      unsub()
+    // Handle synchronous completion case
+    if (emitted >= count && !completed) {
+      complete()
     }
-    return unsub
+
+    return () => {
+      completed = true
+      if (sourceUnsub) sourceUnsub()
+    }
   }
 
 /**
@@ -848,16 +885,29 @@ export const bufferTime =
 export const share =
   <A>() =>
   (source: Observable<A>): Observable<A> => {
-    const subj = subject<A>()
+    let subj: Subject<A> | null = null
     let refCount = 0
     let sourceUnsub: (() => void) | null = null
+    const reset = () => {
+      subj = null
+      refCount = 0
+      sourceUnsub = null
+    }
     return (observer) => {
+      if (!subj) subj = subject<A>()
       const subjectUnsub = subj(observer)
       if (refCount++ === 0) {
+        const currentSubj = subj
         sourceUnsub = source({
-          next: (x) => subj.next(x),
-          error: (e) => subj.error(e),
-          complete: () => subj.complete(),
+          next: (x) => currentSubj.next(x),
+          error: (e) => {
+            currentSubj.error(e)
+            reset()
+          },
+          complete: () => {
+            currentSubj.complete()
+            reset()
+          },
         })
       }
       return () => {

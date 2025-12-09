@@ -48,13 +48,16 @@
   "scripts": {
     "build": "npm run typecheck && npm run esm && npm run cjs",
     "format": "prettier --write .",
+    "test": "vitest",
     "esm": "tsc -p ./tsconfig.esm.json",
     "cjs": "tsc -p ./tsconfig.cjs.json",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "symbol-observable": "^4.0.0"
+  },
   "devDependencies": {
     "@lickle/dom": "^0.0.3",
-    "esbuild": "^0.27.1",
     "jsr": "^0.13.5",
     "prettier": "^3.7.4",
     "typescript": "^5.9.3",

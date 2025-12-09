@@ -15,14 +15,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
-      - name: install dependencies
-        run: bun install
-      - name: transpile typescript
-        run: bun run build
-      # - name: run tests
-      #   run: bun test
+      - name: install
+        run: pnpm install
+      - name: transpile
+        run: pnpm build
+      - name: test
+        run: pnpm test
       - name: Get latest release tag
         id: latest_release_tag
         run: |
@@ -41,14 +43,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
-      - name: install dependencies
-        run: bun install
-      - name: transpile typescript
-        run: bun run build
-      # - name: run tests
-      #   run: bun run test
+      - name: install
+        run: pnpm install
+      - name: transpile
+        run: pnpm build
+      - name: test
+        run: pnpm test
       - name: Get current version
         id: current_version
         run: echo "version=$(node -e 'console.log(require(`./package.json`).version)')" >> $GITHUB_OUTPUT
@@ -64,12 +68,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - name: install dependencies
-        run: bun install
-      - name: transpile typescript
-        run: bun run build
-      # - name: run tests
-      #   run: bun run test
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: install
+        run: pnpm install
+      - name: transpile
+        run: pnpm build
+      - name: test
+        run: pnpm test
       - name: Publish package
-        run: bun jsr publish
+        run: pnpm jsr publish
