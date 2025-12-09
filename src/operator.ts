@@ -14,6 +14,13 @@ import { Observable, type Observer } from './observable.js'
  * to each `value` emitted by the source Observable.
  * @return A function that accepts an Observable and returns an Observable
  * where the emitted values are transformed.
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 2, 3)
+ * const doubled$ = pipe(source$, map((x) => x * 2))
+ * subscribe(doubled$, console.log) // 2, 4, 6
+ * ```
  */
 export const map: <A, B>(transform: (a: A) => B) => (source: Observable<A>) => Observable<B> =
   (transform) => (source) => (observer) =>
@@ -36,6 +43,15 @@ export const map: <A, B>(transform: (a: A) => B) => (source: Observable<A>) => O
  * @param transform The function to apply to each value emitted by the source Observable.
  * @return A function that accepts an Observable and returns an Observable
  * where the emitted values are transformed.
+ *
+ * @example
+ * ```ts
+ * const search$ = subject<string>()
+ * const results$ = pipe(
+ *   search$,
+ *   switchMap((query) => fetchResults(query)) // cancels previous request
+ * )
+ * ```
  */
 export const switchMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Observable<A>) => Observable<B> =
   (transform) => (source) => (observer) => {
@@ -78,6 +94,15 @@ export const switchMap: <A, B>(transform: (a: A) => Observable<B>) => (source: O
  * @param transform The function to apply to each value emitted by the source Observable.
  * @return A function that accepts an Observable and returns an Observable
  * that emits values from all inner Observables concurrently.
+ *
+ * @example
+ * ```ts
+ * const ids$ = of(1, 2, 3)
+ * const users$ = pipe(
+ *   ids$,
+ *   mergeMap((id) => fetchUser(id)) // all requests run in parallel
+ * )
+ * ```
  */
 export const mergeMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Observable<A>) => Observable<B> =
   (transform) => (source) => (observer) => {
@@ -126,6 +151,15 @@ export const mergeMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Ob
  * @param transform The function to apply to each value emitted by the source Observable.
  * @return A function that accepts an Observable and returns an Observable
  * that emits values from inner Observables sequentially.
+ *
+ * @example
+ * ```ts
+ * const ids$ = of(1, 2, 3)
+ * const users$ = pipe(
+ *   ids$,
+ *   concatMap((id) => fetchUser(id)) // requests run one after another
+ * )
+ * ```
  */
 export const concatMap =
   <A, B>(transform: (a: A) => Observable<B>) =>
@@ -187,6 +221,13 @@ export const concatMap =
  *
  * @return A function that returns an Observable that emits items from the
  * source Observable that satisfy the specified `predicate`.
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 2, 3, 4, 5)
+ * const evens$ = pipe(source$, filter((x) => x % 2 === 0))
+ * subscribe(evens$, console.log) // 2, 4
+ * ```
  */
 export const filter: {
   <A, B extends A = A>(predicate: (a: A) => a is B): (oa: Observable<A>) => Observable<B>
@@ -212,6 +253,13 @@ export const filter: {
  * acquired.
  *
  * @return A function that returns an Observable of the accumulated values.
+ *
+ * @example
+ * ```ts
+ * const clicks$ = fromEvent(button, 'click')
+ * const count$ = pipe(clicks$, scan(0, (count) => count + 1))
+ * subscribe(count$, console.log) // 1, 2, 3, ...
+ * ```
  */
 export const scan: <A, B>(initial: A, accumulator: (a: A, b: B) => A) => (source: Observable<B>) => Observable<A> =
   (initial, accumulator) => (source) => (observer) => {
@@ -236,6 +284,16 @@ export const scan: <A, B>(initial: A, accumulator: (a: A, b: B) => A) => (source
  *
  * @return A function that returns an Observable identical to the source, but
  * runs the specified Observer or callback(s) for each item.
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 2, 3)
+ * const logged$ = pipe(
+ *   source$,
+ *   tap((x) => console.log('value:', x)),
+ *   map((x) => x * 2)
+ * )
+ * ```
  */
 export const tap: <A>(operator: (a: A) => any) => (source: Observable<A>) => Observable<A> =
   (sideEffect) => (source) => (observer) =>
@@ -256,6 +314,13 @@ export const tap: <A>(operator: (a: A) => any) => (source: Observable<A>) => Obs
  *
  * @param count The maximum number of values to emit
  * @return A function that returns an Observable that emits only the first n values
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 2, 3, 4, 5)
+ * const first3$ = pipe(source$, take(3))
+ * subscribe(first3$, console.log) // 1, 2, 3
+ * ```
  */
 export const take: <A>(count: number) => (source: Observable<A>) => Observable<A> =
   (count) => (source) => (observer) => {
@@ -291,6 +356,14 @@ export const take: <A>(count: number) => (source: Observable<A>) => Observable<A
  *
  * @param notifier The Observable that causes the output to stop when it emits
  * @return A function that returns an Observable that emits until the notifier emits
+ *
+ * @example
+ * ```ts
+ * const stop$ = subject<void>()
+ * const ticks$ = pipe(interval(1000), takeUntil(stop$))
+ * subscribe(ticks$, console.log) // 0, 1, 2, ...
+ * stop$.next() // stops the subscription
+ * ```
  */
 export const takeUntil: <A>(notifier: Observable<any>) => (source: Observable<A>) => Observable<A> =
   (notifier) => (source) => (observer) => {
@@ -325,6 +398,13 @@ export const takeUntil: <A>(notifier: Observable<any>) => (source: Observable<A>
  *
  * @param predicate The function that evaluates each value
  * @return A function that returns an Observable that emits while the predicate is true
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 2, 3, 4, 5, 1)
+ * const result$ = pipe(source$, takeWhile((x) => x < 4))
+ * subscribe(result$, console.log) // 1, 2, 3
+ * ```
  */
 export const takeWhile: <A>(
   predicate: (value: A, index: number) => boolean,
@@ -357,6 +437,13 @@ export const takeWhile: <A>(
  *
  * @param values The values to prepend
  * @return A function that returns an Observable with the values prepended
+ *
+ * @example
+ * ```ts
+ * const source$ = of(2, 3)
+ * const result$ = pipe(source$, startWith(0, 1))
+ * subscribe(result$, console.log) // 0, 1, 2, 3
+ * ```
  */
 export const startWith: <A, B>(...values: A[]) => (source: Observable<B>) => Observable<A | B> =
   (...values) =>
@@ -378,6 +465,13 @@ export const startWith: <A, B>(...values: A[]) => (source: Observable<B>) => Obs
  *
  * @param compareFn Optional comparison function (defaults to ===)
  * @return A function that returns an Observable that filters consecutive duplicates
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 1, 2, 2, 3, 1)
+ * const distinct$ = pipe(source$, distinctUntilChanged())
+ * subscribe(distinct$, console.log) // 1, 2, 3, 1
+ * ```
  */
 export const distinctUntilChanged =
   <A>(compareFn: (prev: A, curr: A) => boolean = (a, b) => a === b) =>
@@ -406,6 +500,13 @@ export const distinctUntilChanged =
  * The first emission occurs after the second value is received.
  *
  * @return A function that returns an Observable emitting [previous, current] pairs
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 2, 3)
+ * const pairs$ = pipe(source$, pairwise())
+ * subscribe(pairs$, console.log) // [1, 2], [2, 3]
+ * ```
  */
 export const pairwise =
   <A>() =>
@@ -430,6 +531,13 @@ export const pairwise =
  * Unlike pairwise(), this emits on the first value with null as the previous.
  *
  * @return A function that returns an Observable emitting [previous, current] pairs
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 2, 3)
+ * const result$ = pipe(source$, withPrevious(null))
+ * subscribe(result$, console.log) // [null, 1], [1, 2], [2, 3]
+ * ```
  */
 export const withPrevious =
   <A, B = null>(initial: B) =>
@@ -451,6 +559,14 @@ export const withPrevious =
  *
  * @param others Observables to combine with the source.
  * @return A function that returns an Observable emitting arrays of [source, ...others].
+ *
+ * @example
+ * ```ts
+ * const clicks$ = fromEvent(button, 'click')
+ * const config$ = of({ theme: 'dark' })
+ * const result$ = pipe(clicks$, withLatestFrom(config$))
+ * subscribe(result$, ([event, config]) => console.log(config.theme))
+ * ```
  */
 export const withLatestFrom =
   <A, T extends Observable<any>[]>(...others: T) =>
@@ -487,6 +603,17 @@ export const withLatestFrom =
  *
  * @param duration The debounce duration in milliseconds.
  * @return A function that returns an Observable that debounces emissions.
+ *
+ * @example
+ * ```ts
+ * const input$ = fromEvent(input, 'input')
+ * const debounced$ = pipe(
+ *   input$,
+ *   map((e) => e.target.value),
+ *   debounceTime(300)
+ * )
+ * subscribe(debounced$, (value) => search(value))
+ * ```
  */
 export const debounceTime =
   (duration: number) =>
@@ -523,6 +650,13 @@ export const debounceTime =
  *
  * @param duration The throttle duration in milliseconds.
  * @return A function that returns an Observable that throttles emissions.
+ *
+ * @example
+ * ```ts
+ * const scroll$ = fromEvent(window, 'scroll')
+ * const throttled$ = pipe(scroll$, throttleTime(100))
+ * subscribe(throttled$, () => updatePosition())
+ * ```
  */
 export const throttleTime =
   (duration: number) =>
@@ -546,6 +680,13 @@ export const throttleTime =
  *
  * @param duration The delay duration in milliseconds.
  * @return A function that returns an Observable that delays emissions.
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 2, 3)
+ * const delayed$ = pipe(source$, delay(1000))
+ * subscribe(delayed$, console.log) // 1, 2, 3 (each after 1 second)
+ * ```
  */
 export const delay =
   (duration: number) =>
@@ -585,6 +726,13 @@ export const delay =
  *
  * @param duration The buffer duration in milliseconds.
  * @return A function that returns an Observable that emits buffered arrays.
+ *
+ * @example
+ * ```ts
+ * const clicks$ = fromEvent(button, 'click')
+ * const buffered$ = pipe(clicks$, bufferTime(1000))
+ * subscribe(buffered$, (clicks) => console.log(`${clicks.length} clicks`))
+ * ```
  */
 export const bufferTime =
   (duration: number) =>
@@ -617,6 +765,13 @@ export const bufferTime =
  * Subscribes to source on first subscriber, unsubscribes when all unsubscribe.
  *
  * @return A function that returns a shared Observable.
+ *
+ * @example
+ * ```ts
+ * const source$ = pipe(interval(1000), share())
+ * subscribe(source$, (x) => console.log('A:', x))
+ * subscribe(source$, (x) => console.log('B:', x)) // shares same interval
+ * ```
  */
 export const share =
   <A>() =>
@@ -648,6 +803,13 @@ export const share =
  *
  * @param bufferSize Number of values to replay (default: 1)
  * @return A function that returns a shared Observable with replay.
+ *
+ * @example
+ * ```ts
+ * const source$ = pipe(of(1, 2, 3), shareReplay(2))
+ * subscribe(source$, (x) => console.log('A:', x)) // A: 1, A: 2, A: 3
+ * subscribe(source$, (x) => console.log('B:', x)) // B: 2, B: 3 (replays last 2)
+ * ```
  */
 export const shareReplay =
   <A>(bufferSize = 1) =>
