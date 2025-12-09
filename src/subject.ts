@@ -155,3 +155,76 @@ export type BehaviorSubject<T, E = unknown> = Subject<T, E> & {
   /** Returns the current value synchronously */
   getValue: () => T
 }
+
+/**
+ * Creates a ReplayByKeySubject that caches the latest value for each key and replays
+ * all cached values to new subscribers.
+ *
+ * Useful for event streams with discriminated unions where you want to replay
+ * the latest event of each type.
+ *
+ * @param getKey Function to extract the key from a value
+ *
+ * @example
+ * ```ts
+ * type Event =
+ *   | { type: "user"; data: User }
+ *   | { type: "config"; data: Config }
+ *
+ * const events$ = replayByKeySubject<Event, Event['type']>((e) => e.type)
+ * events$.next({ type: "user", data: user1 })
+ * events$.next({ type: "config", data: config1 })
+ * events$.next({ type: "user", data: user2 }) // overwrites previous "user"
+ *
+ * // New subscriber receives: { type: "user", data: user2 }, { type: "config", data: config1 }
+ * ```
+ */
+export const replayByKeySubject = <T, K, E = unknown>(getKey: (value: T) => K): ReplayByKeySubject<T, K, E> => {
+  const observers = new Set<Observer<T, E>>()
+  const cache = new Map<K, T>()
+  let closed = false
+  const subject: ReplayByKeySubject<T, K, E> = (observer: Observer<T, E>) => {
+    cache.forEach((x) => observer.next(x))
+    if (closed) {
+      observer.complete()
+      return () => {}
+    }
+    observers.add(observer)
+    return () => observers.delete(observer)
+  }
+  subject.next = (x: T) => {
+    if (closed) return
+    cache.set(getKey(x), x)
+    observers.forEach((o) => o.next(x))
+  }
+  subject.error = (e: E) => {
+    if (closed) return
+    closed = true
+    observers.forEach((o) => o.error(e))
+    observers.clear()
+  }
+  subject.complete = () => {
+    if (closed) return
+    closed = true
+    observers.forEach((o) => o.complete())
+    observers.clear()
+  }
+  subject.get = (key: K) => cache.get(key)
+  subject.getCache = () => new Map(cache)
+  return subject
+}
+
+/**
+ * A ReplayByKeySubject caches the latest value for each key and replays all cached
+ * values to new subscribers.
+ *
+ * @typeParam T - The type of values emitted
+ * @typeParam K - The type of the key
+ * @typeParam E - The type of error that may be emitted
+ */
+export type ReplayByKeySubject<T, K, E = unknown> = Subject<T, E> & {
+  /** Returns the cached value for a key, or undefined if not present */
+  get: (key: K) => T | undefined
+  /** Returns a copy of the current cache as a Map */
+  getCache: () => Map<K, T>
+}

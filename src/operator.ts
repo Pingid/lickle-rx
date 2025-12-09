@@ -3,8 +3,8 @@
  * @module
  */
 
+import { subject, replaySubject, replayByKeySubject } from './subject.js'
 import { Observable, type Observer } from './observable.js'
-import { subject, replaySubject } from './subject.js'
 
 /**
  * Applies a given transform function to each value emitted by the source
@@ -653,6 +653,60 @@ export const shareReplay =
   <A>(bufferSize = 1) =>
   (source: Observable<A>): Observable<A> => {
     const subject = replaySubject<A>(bufferSize)
+    let refCount = 0
+    let sourceUnsub: (() => void) | null = null
+    return (observer) => {
+      const subjectUnsub = subject(observer)
+      if (refCount++ === 0) {
+        sourceUnsub = source({
+          next: (x) => subject.next(x),
+          error: (e) => subject.error(e),
+          complete: () => subject.complete(),
+        })
+      }
+      return () => {
+        subjectUnsub()
+        if (--refCount === 0 && sourceUnsub) {
+          sourceUnsub()
+          sourceUnsub = null
+        }
+      }
+    }
+  }
+
+/**
+ * Shares a single subscription and replays the latest value for each key to new subscribers.
+ *
+ * Useful for sharing event streams with discriminated unions where you want late
+ * subscribers to receive the latest event of each type.
+ *
+ * @param getKey Function to extract the key from a value
+ * @return A function that returns a shared Observable with replay by key.
+ *
+ * @example
+ * ```ts
+ * type Event =
+ *   | { type: "user"; data: User }
+ *   | { type: "config"; data: Config }
+ *
+ * const source$ = subject<Event>()
+ * const shared$ = pipe(
+ *   source$,
+ *   shareReplayByKey((e) => e.type)
+ * )
+ *
+ * source$.next({ type: "user", data: user1 })
+ * source$.next({ type: "config", data: config1 })
+ * source$.next({ type: "user", data: user2 })
+ *
+ * subscribe(shared$, (e) => console.log(e)) // { type: "config", data: config1 }, { type: "user", data: user2 }
+ * subscribe(shared$, (e) => console.log(e)) // { type: "config", data: config1 }, { type: "user", data: user2 }
+ * ```
+ */
+export const shareReplayByKey =
+  <A, K>(getKey: (value: A) => K) =>
+  (source: Observable<A>): Observable<A> => {
+    const subject = replayByKeySubject<A, K>(getKey)
     let refCount = 0
     let sourceUnsub: (() => void) | null = null
     return (observer) => {

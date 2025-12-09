@@ -28,11 +28,11 @@ export const observable = <T, E = unknown>(cb: (observer: Observer<T, E>) => Uns
  */
 export const subscribe = <T, E = unknown>(
   observable: Observable<T, E>,
-  observer: Partial<Observer<T, E>>,
+  observer: Partial<Observer<T, E>> | ((value: T) => void),
 ): Unsubscribe =>
   observable({
     next: () => {},
     error: () => {},
     complete: () => {},
-    ...observer,
+    ...(typeof observer === 'function' ? { next: observer } : observer),
   })
