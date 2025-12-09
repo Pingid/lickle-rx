@@ -5,6 +5,7 @@
 
 import { subject, replaySubject, replayByKeySubject, type Subject } from './subject.js'
 import { Observable, Unsubscribe, type Observer } from './observable.js'
+import { asyncScheduler, Scheduler } from './scheduler.js'
 
 /**
  * Applies a given transform function to each value emitted by the source
@@ -715,6 +716,9 @@ export const withLatestFrom =
  * Emits a value only after a specified time has passed without another emission.
  *
  * @param duration The debounce duration in milliseconds.
+ * @param scheduler Scheduler to use for timing. Defaults to `asyncScheduler`.
+ *   Use `animationFrameScheduler` for frame-synced debouncing, or
+ *   `createVirtualScheduler()` for testing.
  * @return A function that returns an Observable that debounces emissions.
  *
  * @example
@@ -727,34 +731,48 @@ export const withLatestFrom =
  * )
  * subscribe(debounced$, (value) => search(value))
  * ```
+ *
+ * @example With virtual scheduler for testing
+ * ```ts
+ * const scheduler = createVirtualScheduler()
+ * const results: number[] = []
+ * pipe(of(1, 2, 3), debounceTime(100, scheduler), subscribe((x) => results.push(x)))
+ * scheduler.flush()
+ * // results is [3] - only the last value after debounce
+ * ```
  */
 export const debounceTime =
-  (duration: number) =>
+  (duration: number, scheduler: Scheduler = asyncScheduler) =>
   <A>(source: Observable<A>): Observable<A> =>
   (observer) => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    let taskUnsub: Unsubscribe | undefined
     let lastValue: A | undefined
     let hasValue = false
+
     const sourceUnsub = source({
       next: (x) => {
         lastValue = x
         hasValue = true
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
-        timeoutId = setTimeout(() => {
+        // Cancel previous scheduled emission
+        if (taskUnsub) taskUnsub()
+
+        // Schedule new emission
+        taskUnsub = scheduler.schedule(() => {
           hasValue = false
           observer.next(x)
         }, duration)
       },
-      ...forwardError(observer),
+      error: observer.error,
       complete: () => {
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
+        if (taskUnsub) taskUnsub()
         if (hasValue) observer.next(lastValue!)
         observer.complete()
       },
     })
+
     return () => {
       sourceUnsub()
-      if (timeoutId !== undefined) clearTimeout(timeoutId)
+      if (taskUnsub) taskUnsub()
     }
   }
 
@@ -1014,6 +1032,80 @@ export const shareReplayByKey =
           sourceUnsub = null
         }
       }
+    }
+  }
+
+/**
+ * Re-emits all notifications from the source Observable on a specified Scheduler.
+ *
+ * Use cases:
+ * - Break synchronous execution to keep the UI responsive
+ * - Schedule work to run on animation frames for smooth visuals
+ * - Defer low-priority work until the browser is idle
+ * - Control microtask vs macrotask execution order
+ *
+ * @param scheduler The scheduler to use for re-emitting notifications.
+ * @param delay Optional delay in milliseconds (defaults to 0).
+ * @return A function that returns an Observable emitting on the scheduler.
+ *
+ * @example Sync to animation frames for smooth rendering
+ * ```ts
+ * pipe(
+ *   dataStream$,
+ *   observeOn(animationFrameScheduler),
+ *   subscribe((data) => renderToCanvas(data))
+ * )
+ * ```
+ *
+ * @example Defer heavy processing to idle time
+ * ```ts
+ * pipe(
+ *   events$,
+ *   observeOn(idleScheduler),
+ *   subscribe((event) => analytics.track(event))
+ * )
+ * ```
+ *
+ * @example Break sync loops to unblock the UI
+ * ```ts
+ * pipe(
+ *   of(...largeArray),
+ *   observeOn(asyncScheduler),
+ *   subscribe((item) => processItem(item))
+ * )
+ * ```
+ */
+export const observeOn =
+  <A>(scheduler: Scheduler, delay = 0) =>
+  (source: Observable<A>): Observable<A> =>
+  (observer) => {
+    let closed = false
+    let sourceUnsub: Unsubscribe | undefined
+
+    sourceUnsub = source({
+      next: (x) => {
+        if (closed) return
+        scheduler.schedule(() => {
+          if (!closed) observer.next(x)
+        }, delay)
+      },
+      error: (e) => {
+        if (closed) return
+        scheduler.schedule(() => {
+          if (!closed) observer.error(e)
+        }, delay)
+      },
+      complete: () => {
+        if (closed) return
+        scheduler.schedule(() => {
+          if (!closed) observer.complete()
+        }, delay)
+      },
+    })
+
+    return () => {
+      closed = true
+      if (sourceUnsub) sourceUnsub()
     }
   }
 

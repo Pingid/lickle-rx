@@ -3,7 +3,8 @@
  * @module
  */
 
-import { Observable, Observer } from './observable.js'
+import { Observable, Observer, Unsubscribe } from './observable.js'
+import { asyncScheduler, Scheduler } from './scheduler.js'
 
 /**
  * Converts the arguments to an observable sequence.
@@ -103,6 +104,9 @@ export const from = fromPromise
  * Creates an observable that emits sequential numbers at specified intervals.
  *
  * @param period The interval period in milliseconds
+ * @param scheduler Scheduler to use for timing. Defaults to `asyncScheduler`.
+ *   Use `animationFrameScheduler` for smooth UI updates, or `createVirtualScheduler()`
+ *   for testing.
  * @return Observable that emits incrementing numbers
  *
  * @example
@@ -110,20 +114,24 @@ export const from = fromPromise
  * const ticks$ = interval(1000)
  * subscribe(ticks$, console.log) // 0, 1, 2, ... (every second)
  * ```
+ *
+ * @example With animation frame scheduler
+ * ```ts
+ * const frames$ = interval(0, animationFrameScheduler)
+ * subscribe(frames$, (frame) => updateAnimation(frame))
+ * ```
  */
-export const interval = (period: number): Observable<number> => {
-  return (observer) => {
-    let count = 0
-    const id = setInterval(() => observer.next(count++), period)
-    return () => clearInterval(id)
-  }
-}
+export const interval = (period: number, scheduler: Scheduler = asyncScheduler): Observable<number> =>
+  timer(period, period, scheduler)
 
 /**
  * Creates an observable that emits after a delay, optionally repeating.
  *
  * @param delay Initial delay in milliseconds
- * @param period Optional period for repeating emissions
+ * @param period Optional period for repeating emissions. If omitted, completes after first emission.
+ * @param scheduler Scheduler to use for timing. Defaults to `asyncScheduler`.
+ *   Use `animationFrameScheduler` for smooth UI updates, or `createVirtualScheduler()`
+ *   for testing.
  * @return Observable that emits after delay (and optionally at intervals)
  *
  * @example
@@ -134,24 +142,38 @@ export const interval = (period: number): Observable<number> => {
  * const repeating$ = timer(1000, 500)
  * subscribe(repeating$, console.log) // 0 after 1s, then 1, 2, 3... every 500ms
  * ```
+ *
+ * @example With virtual scheduler for testing
+ * ```ts
+ * const scheduler = createVirtualScheduler()
+ * const values: number[] = []
+ * subscribe(timer(1000, 1000, scheduler), (x) => values.push(x))
+ * scheduler.flush()
+ * // values is now [0, 1, 2, ...] without waiting
+ * ```
  */
-export const timer = (delay: number, period?: number): Observable<number> => {
+export const timer = (delay: number, period?: number, scheduler: Scheduler = asyncScheduler): Observable<number> => {
   return (observer) => {
     let count = 0
-    let intervalId: ReturnType<typeof setInterval> | undefined
+    let unsub: Unsubscribe | undefined
 
-    const timeoutId = setTimeout(() => {
+    // Recursive function to handle intervals
+    const dispatch = () => {
       observer.next(count++)
+
       if (period !== undefined) {
-        intervalId = setInterval(() => observer.next(count++), period)
+        // Schedule the next emission
+        unsub = scheduler.schedule(dispatch, period)
       } else {
         observer.complete()
       }
-    }, delay)
+    }
+
+    // Schedule the first emission
+    unsub = scheduler.schedule(dispatch, delay)
 
     return () => {
-      clearTimeout(timeoutId)
-      if (intervalId !== undefined) clearInterval(intervalId)
+      if (unsub) unsub()
     }
   }
 }
