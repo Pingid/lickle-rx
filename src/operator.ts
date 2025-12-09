@@ -245,6 +245,51 @@ export const filter: {
   })
 
 /**
+ * Catches errors on the source Observable and handles them by returning a new Observable.
+ * If the selector throws, that error is forwarded to the observer.
+ *
+ * @param selector Function that receives the error and returns an Observable to continue with
+ * @return A function that returns an Observable that recovers from errors
+ *
+ * @example
+ * ```ts
+ * const data$ = pipe(
+ *   fromAsync((signal) => fetch('/api/data', { signal })),
+ *   catchError((err) => of({ error: true, message: err.message }))
+ * )
+ * ```
+ */
+export const catchError =
+  <A, B>(selector: (err: any) => Observable<B>) =>
+  (source: Observable<A>): Observable<A | B> =>
+  (observer) => {
+    let innerUnsub: (() => void) | null = null
+    let sourceUnsub: (() => void) | null = null
+
+    sourceUnsub = source({
+      next: observer.next,
+      complete: observer.complete,
+      error: (err) => {
+        try {
+          const result$ = selector(err)
+          innerUnsub = result$({
+            next: observer.next,
+            error: observer.error,
+            complete: observer.complete,
+          })
+        } catch (e) {
+          observer.error(e)
+        }
+      },
+    })
+
+    return () => {
+      if (sourceUnsub) sourceUnsub()
+      if (innerUnsub) innerUnsub()
+    }
+  }
+
+/**
  * Maintains some state based on the values emited from a source observable and emits the state
  * when the source emits.
  *
@@ -278,12 +323,14 @@ export const scan: <A, B>(initial: A, accumulator: (a: A, b: B) => A) => (source
   }
 
 /**
- * Used to perform side-effects for notifications from the source observable
+ * Used to perform side-effects for notifications from the source observable.
+ * Accepts either a function (called on next) or a partial Observer to tap into
+ * next, error, and/or complete.
  *
- * @param operator A callback to execute every type source observable emits
+ * @param observerOrNext A callback or partial Observer to execute on emissions
  *
  * @return A function that returns an Observable identical to the source, but
- * runs the specified Observer or callback(s) for each item.
+ * runs the specified Observer or callback(s) for each notification.
  *
  * @example
  * ```ts
@@ -293,21 +340,46 @@ export const scan: <A, B>(initial: A, accumulator: (a: A, b: B) => A) => (source
  *   tap((x) => console.log('value:', x)),
  *   map((x) => x * 2)
  * )
+ *
+ * // Or with full observer:
+ * const tracked$ = pipe(
+ *   source$,
+ *   tap({
+ *     next: (x) => console.log('value:', x),
+ *     error: (e) => console.error('error:', e),
+ *     complete: () => console.log('done'),
+ *   })
+ * )
  * ```
  */
-export const tap: <A>(operator: (a: A) => any) => (source: Observable<A>) => Observable<A> =
-  (sideEffect) => (source) => (observer) =>
-    source({
+export const tap =
+  <A>(observerOrNext: Partial<Observer<A>> | ((value: A) => void)) =>
+  (source: Observable<A>): Observable<A> =>
+  (observer) => {
+    const tapObserver = typeof observerOrNext === 'function' ? { next: observerOrNext } : observerOrNext
+    return source({
       next: (x) => {
         try {
-          sideEffect(x)
+          tapObserver.next?.(x)
           observer.next(x)
         } catch (err) {
           observer.error(err)
         }
       },
-      ...forward(observer),
+      error: (e) => {
+        try {
+          tapObserver.error?.(e)
+        } catch {}
+        observer.error(e)
+      },
+      complete: () => {
+        try {
+          tapObserver.complete?.()
+        } catch {}
+        observer.complete()
+      },
     })
+  }
 
 /**
  * Emits only the first n values from the source Observable, then completes.
@@ -843,6 +915,7 @@ export const shareReplay =
  * subscribers to receive the latest event of each type.
  *
  * @param getKey Function to extract the key from a value
+ * @param options.maxKeys Maximum number of keys to cache (default: Infinity). When exceeded, oldest keys are evicted.
  * @return A function that returns a shared Observable with replay by key.
  *
  * @example
@@ -866,9 +939,9 @@ export const shareReplay =
  * ```
  */
 export const shareReplayByKey =
-  <A, K>(getKey: (value: A) => K) =>
+  <A, K>(getKey: (value: A) => K, options?: { maxKeys?: number }) =>
   (source: Observable<A>): Observable<A> => {
-    const subject = replayByKeySubject<A, K>(getKey)
+    const subject = replayByKeySubject<A, K>(getKey, options)
     let refCount = 0
     let sourceUnsub: (() => void) | null = null
     return (observer) => {

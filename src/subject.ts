@@ -190,6 +190,7 @@ export type BehaviorSubject<T, E = unknown> = Subject<T, E> & {
  * the latest event of each type.
  *
  * @param getKey Function to extract the key from a value
+ * @param options.maxKeys Maximum number of keys to cache (default: Infinity). When exceeded, oldest keys are evicted.
  *
  * @example
  * ```ts
@@ -205,7 +206,11 @@ export type BehaviorSubject<T, E = unknown> = Subject<T, E> & {
  * // New subscriber receives: { type: "user", data: user2 }, { type: "config", data: config1 }
  * ```
  */
-export const replayByKeySubject = <T, K, E = unknown>(getKey: (value: T) => K): ReplayByKeySubject<T, K, E> => {
+export const replayByKeySubject = <T, K, E = unknown>(
+  getKey: (value: T) => K,
+  options?: { maxKeys?: number },
+): ReplayByKeySubject<T, K, E> => {
+  const maxKeys = options?.maxKeys ?? Infinity
   const observers = new Set<Observer<T, E>>()
   const cache = new Map<K, T>()
   let closed = false
@@ -220,7 +225,13 @@ export const replayByKeySubject = <T, K, E = unknown>(getKey: (value: T) => K): 
   }
   subject.next = (x: T) => {
     if (closed) return
-    cache.set(getKey(x), x)
+    const key = getKey(x)
+    if (cache.has(key)) cache.delete(key)
+    cache.set(key, x)
+    while (cache.size > maxKeys) {
+      const oldest = cache.keys().next().value
+      if (oldest) cache.delete(oldest)
+    }
     observers.forEach((o) => o.next(x))
   }
   subject.error = (e: E) => {
@@ -237,6 +248,7 @@ export const replayByKeySubject = <T, K, E = unknown>(getKey: (value: T) => K): 
   }
   subject.get = (key: K) => cache.get(key)
   subject.getCache = () => new Map(cache)
+  subject.maxKeys = maxKeys
   return subject
 }
 
@@ -253,4 +265,6 @@ export type ReplayByKeySubject<T, K, E = unknown> = Subject<T, E> & {
   get: (key: K) => T | undefined
   /** Returns a copy of the current cache as a Map */
   getCache: () => Map<K, T>
+  /** Maximum number of keys stored in the cache */
+  maxKeys: number
 }
