@@ -74,6 +74,10 @@ export const combineLatest = <T extends Observable<any>[]>(
  * Combines multiple Observables by emitting arrays of values at matching indices.
  * Emits when all sources have emitted a value at the current index.
  *
+ * @param options Optional configuration object with `maxBuffer` to limit memory usage.
+ *   - `maxBuffer`: Maximum values to buffer per source before throwing an error.
+ *     Defaults to `Infinity`. Set this to prevent memory leaks when sources emit at
+ *     different rates.
  * @param sources Input Observables to zip together.
  * @return Observable that emits arrays of values at matching indices.
  *
@@ -84,28 +88,76 @@ export const combineLatest = <T extends Observable<any>[]>(
  * const zipped$ = zip(letters$, numbers$)
  * subscribe(zipped$, console.log) // ['a', 1], ['b', 2], ['c', 3]
  * ```
+ *
+ * @example With buffer limit
+ * ```ts
+ * const fast$ = interval(10)
+ * const slow$ = interval(1000)
+ * const zipped$ = zip({ maxBuffer: 100 }, fast$, slow$)
+ * // Errors if fast$ emits more than 100 values before slow$ emits
+ * ```
  */
-export const zip = <T extends Observable<any>[]>(
-  ...sources: T
-): Observable<{ [K in keyof T]: ObservableValue<T[K]> }> => {
+export const zip: {
+  /** Zip with buffer limit to prevent memory leaks */
+  <T extends Observable<any>[]>(
+    options: { maxBuffer: number },
+    ...sources: T
+  ): Observable<{ [K in keyof T]: ObservableValue<T[K]> }>
+  /** Zip with unlimited buffer (default) */
+  <T extends Observable<any>[]>(...sources: T): Observable<{ [K in keyof T]: ObservableValue<T[K]> }>
+} = (...args: any[]): Observable<any> => {
+  const first = args[0]
+  const hasOptions = first && typeof first === 'object' && 'maxBuffer' in first
+  const limit = hasOptions ? (first as { maxBuffer: number }).maxBuffer : Infinity
+  const sources = hasOptions ? args.slice(1) : args
+
   return (observer) => {
     const buffers: any[][] = sources.map(() => [])
+    const completed: boolean[] = sources.map(() => false)
+    const unsubs: (() => void)[] = []
+    let hasError = false
+
+    const cleanup = () => unsubs.forEach((fn) => fn?.())
+
     const tryEmit = () => {
-      if (buffers.every((b) => b.length > 0)) {
-        observer.next(buffers.map((b) => b.shift()!) as any)
+      while (buffers.every((b) => b.length > 0)) {
+        observer.next(buffers.map((b) => b.shift()))
+      }
+      // Complete if any source is done and its buffer is empty
+      if (completed.some((done, i) => done && buffers[i]!.length === 0)) {
+        cleanup()
+        observer.complete()
       }
     }
-    const unsubs = sources.map((source, i) =>
-      source({
-        next: (x) => {
-          buffers[i]!.push(x)
-          tryEmit()
-        },
-        error: observer.error,
-        complete: () => {},
-      }),
-    )
-    return () => unsubs.forEach((fn) => fn())
+
+    sources.forEach((source: Observable<any>, i: number) => {
+      unsubs.push(
+        source({
+          next: (x) => {
+            if (hasError) return
+            if (buffers[i]!.length >= limit) {
+              hasError = true
+              cleanup()
+              observer.error(new Error(`zip buffer overflow: source ${i} exceeded ${limit} buffered values`))
+              return
+            }
+            buffers[i]!.push(x)
+            tryEmit()
+          },
+          error: (e) => {
+            hasError = true
+            cleanup()
+            observer.error(e)
+          },
+          complete: () => {
+            completed[i] = true
+            tryEmit()
+          },
+        }),
+      )
+    })
+
+    return cleanup
   }
 }
 
