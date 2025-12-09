@@ -3,11 +3,6 @@
  * @module
  */
 import 'symbol-observable'
-declare global {
-  interface SymbolConstructor {
-    readonly observable: symbol
-  }
-}
 
 /** Function to clean up a subscription */
 export type Unsubscribe = () => void

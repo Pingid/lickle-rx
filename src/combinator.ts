@@ -60,7 +60,7 @@ export const combineLatest = <T extends Observable<any>[]>(
           values[i] = x
           hasValue[i] = true
           if (!ready) ready = hasValue.every(Boolean)
-          if (ready) observer.next([...values] as any)
+          if (ready) observer.next(values.slice() as any)
         },
         error: observer.error,
         complete: () => {},

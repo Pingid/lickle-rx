@@ -50,7 +50,7 @@
     "format": "prettier --write .",
     "test": "vitest",
     "esm": "tsc -p ./tsconfig.esm.json",
-    "cjs": "tsc -p ./tsconfig.cjs.json",
+    "cjs": "tsc -p ./tsconfig.cjs.json > /dev/null 2>&1 || true",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

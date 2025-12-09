@@ -23,166 +23,97 @@ import { Unsubscribe } from './observable.js'
  * ```
  */
 export const pipe: {
-  <A>(x: A): A
-  <A, B>(x: A, f1: (x: A) => B): B
-  <A, B, C>(x: A, f1: (x: A) => B, f2: (x: B) => C): C
-  <A, B, C, D>(x: A, f1: (x: A) => B, f2: (x: B) => C, f3: (x: C) => D): D
-  <A, B, C, D, E>(x: A, f1: (x: A) => B, f2: (x: B) => C, f3: (x: C) => D, f4: (x: D) => E): E
-  <A, B, C, D, E, F>(x: A, f1: (x: A) => B, f2: (x: B) => C, f3: (x: C) => D, f4: (x: D) => E, f5: (x: E) => F): F
-  <A, B, C, D, E, F, G>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
+  <T>(x: T): T
+  <T, A>(x: T, op1: Unary<T, A>): A
+  <T, A, B>(x: T, op1: Unary<T, A>, op2: Unary<A, B>): B
+  <T, A, B, C>(x: T, op1: Unary<T, A>, op2: Unary<A, B>, op3: Unary<B, C>): C
+  <T, A, B, C, D>(x: T, op1: Unary<T, A>, op2: Unary<A, B>, op3: Unary<B, C>, op4: Unary<C, D>): D
+  <T, A, B, C, D, E>(x: T, op1: Unary<T, A>, op2: Unary<A, B>, op3: Unary<B, C>, op4: Unary<C, D>, op5: Unary<D, E>): E
+  <T, A, B, C, D, E, F>(
+    x: T,
+    op1: Unary<T, A>,
+    op2: Unary<A, B>,
+    op3: Unary<B, C>,
+    op4: Unary<C, D>,
+    op5: Unary<D, E>,
+    op6: Unary<E, F>,
+  ): F
+  <T, A, B, C, D, E, F, G>(
+    x: T,
+    op1: Unary<T, A>,
+    op2: Unary<A, B>,
+    op3: Unary<B, C>,
+    op4: Unary<C, D>,
+    op5: Unary<D, E>,
+    op6: Unary<E, F>,
+    op7: Unary<F, G>,
   ): G
-  <A, B, C, D, E, F, G, H>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
+  <T, A, B, C, D, E, F, G, H>(
+    x: T,
+    op1: Unary<T, A>,
+    op2: Unary<A, B>,
+    op3: Unary<B, C>,
+    op4: Unary<C, D>,
+    op5: Unary<D, E>,
+    op6: Unary<E, F>,
+    op7: Unary<F, G>,
+    op8: Unary<G, H>,
   ): H
-  <A, B, C, D, E, F, G, H, I>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
+  <T, A, B, C, D, E, F, G, H, I>(
+    x: T,
+    op1: Unary<T, A>,
+    op2: Unary<A, B>,
+    op3: Unary<B, C>,
+    op4: Unary<C, D>,
+    op5: Unary<D, E>,
+    op6: Unary<E, F>,
+    op7: Unary<F, G>,
+    op8: Unary<G, H>,
+    op9: Unary<H, I>,
   ): I
-  <A, B, C, D, E, F, G, H, I, J>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
+  <T, A, B, C, D, E, F, G, H, I, J>(
+    x: T,
+    op1: Unary<T, A>,
+    op2: Unary<A, B>,
+    op3: Unary<B, C>,
+    op4: Unary<C, D>,
+    op5: Unary<D, E>,
+    op6: Unary<E, F>,
+    op7: Unary<F, G>,
+    op8: Unary<G, H>,
+    op9: Unary<H, I>,
+    op10: Unary<I, J>,
   ): J
-  <A, B, C, D, E, F, G, H, I, J, K>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
+  <T, A, B, C, D, E, F, G, H, I, J, K>(
+    x: T,
+    op1: Unary<T, A>,
+    op2: Unary<A, B>,
+    op3: Unary<B, C>,
+    op4: Unary<C, D>,
+    op5: Unary<D, E>,
+    op6: Unary<E, F>,
+    op7: Unary<F, G>,
+    op8: Unary<G, H>,
+    op9: Unary<H, I>,
+    op10: Unary<I, J>,
+    op11: Unary<J, K>,
   ): K
-  <A, B, C, D, E, F, G, H, I, J, K, L>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
+  <T, A, B, C, D, E, F, G, H, I, J, K, L>(
+    x: T,
+    op1: Unary<T, A>,
+    op2: Unary<A, B>,
+    op3: Unary<B, C>,
+    op4: Unary<C, D>,
+    op5: Unary<D, E>,
+    op6: Unary<E, F>,
+    op7: Unary<F, G>,
+    op8: Unary<G, H>,
+    op9: Unary<H, I>,
+    op10: Unary<I, J>,
+    op11: Unary<J, K>,
+    op12: Unary<K, L>,
   ): L
-  <A, B, C, D, E, F, G, H, I, J, K, L, M>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
-  ): M
-  <A, B, C, D, E, F, G, H, I, J, K, L, M, N>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
-    f13: (x: M) => N,
-  ): N
-  <A, B, C, D, E, F, G, H, I, J, K, L, M, N, O>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
-    f13: (x: M) => N,
-    f14: (x: N) => O,
-  ): O
-  <A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
-    f13: (x: M) => N,
-    f14: (x: N) => O,
-    f15: (x: O) => P,
-  ): P
-  <A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q>(
-    x: A,
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
-    f13: (x: M) => N,
-    f14: (x: N) => O,
-    f15: (x: O) => P,
-    f16: (x: P) => Q,
-  ): Q
+  <T>(x: T, ...ops: Unary<any, any>[]): any
 } = (h: any, ...t: any[]) => t.reduce<any>((a, b) => b(a), h)
 
 /**
@@ -200,158 +131,101 @@ export const pipe: {
  * ```
  */
 export const flow: {
-  <A, B>(f1: (x: A) => B): (x: A) => B
-  <A, B, C>(f1: (x: A) => B, f2: (x: B) => C): (x: A) => C
-  <A, B, C, D>(f1: (x: A) => B, f2: (x: B) => C, f3: (x: C) => D): (x: A) => D
-  <A, B, C, D, E>(f1: (x: A) => B, f2: (x: B) => C, f3: (x: C) => D, f4: (x: D) => E): (x: A) => E
-  <A, B, C, D, E, F>(f1: (x: A) => B, f2: (x: B) => C, f3: (x: C) => D, f4: (x: D) => E, f5: (x: E) => F): (x: A) => F
+  <A, B>(op1: Unary<A, B>): (x: A) => B
+  <A, B, C>(op1: Unary<A, B>, op2: Unary<B, C>): (x: A) => C
+  <A, B, C, D>(op1: Unary<A, B>, op2: Unary<B, C>, op3: Unary<C, D>): (x: A) => D
+  <A, B, C, D, E>(op1: Unary<A, B>, op2: Unary<B, C>, op3: Unary<C, D>, op4: Unary<D, E>): (x: A) => E
+  <A, B, C, D, E, F>(
+    op1: Unary<A, B>,
+    op2: Unary<B, C>,
+    op3: Unary<C, D>,
+    op4: Unary<D, E>,
+    op5: Unary<E, F>,
+  ): (x: A) => F
   <A, B, C, D, E, F, G>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
+    op1: Unary<A, B>,
+    op2: Unary<B, C>,
+    op3: Unary<C, D>,
+    op4: Unary<D, E>,
+    op5: Unary<E, F>,
+    op6: Unary<F, G>,
   ): (x: A) => G
   <A, B, C, D, E, F, G, H>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
+    op1: Unary<A, B>,
+    op2: Unary<B, C>,
+    op3: Unary<C, D>,
+    op4: Unary<D, E>,
+    op5: Unary<E, F>,
+    op6: Unary<F, G>,
+    op7: Unary<G, H>,
   ): (x: A) => H
   <A, B, C, D, E, F, G, H, I>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
+    op1: Unary<A, B>,
+    op2: Unary<B, C>,
+    op3: Unary<C, D>,
+    op4: Unary<D, E>,
+    op5: Unary<E, F>,
+    op6: Unary<F, G>,
+    op7: Unary<G, H>,
+    op8: Unary<H, I>,
   ): (x: A) => I
   <A, B, C, D, E, F, G, H, I, J>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
+    op1: Unary<A, B>,
+    op2: Unary<B, C>,
+    op3: Unary<C, D>,
+    op4: Unary<D, E>,
+    op5: Unary<E, F>,
+    op6: Unary<F, G>,
+    op7: Unary<G, H>,
+    op8: Unary<H, I>,
+    op9: Unary<I, J>,
   ): (x: A) => J
   <A, B, C, D, E, F, G, H, I, J, K>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
+    op1: Unary<A, B>,
+    op2: Unary<B, C>,
+    op3: Unary<C, D>,
+    op4: Unary<D, E>,
+    op5: Unary<E, F>,
+    op6: Unary<F, G>,
+    op7: Unary<G, H>,
+    op8: Unary<H, I>,
+    op9: Unary<I, J>,
+    op10: Unary<J, K>,
   ): (x: A) => K
   <A, B, C, D, E, F, G, H, I, J, K, L>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
+    op1: Unary<A, B>,
+    op2: Unary<B, C>,
+    op3: Unary<C, D>,
+    op4: Unary<D, E>,
+    op5: Unary<E, F>,
+    op6: Unary<F, G>,
+    op7: Unary<G, H>,
+    op8: Unary<H, I>,
+    op9: Unary<I, J>,
+    op10: Unary<J, K>,
+    op11: Unary<K, L>,
   ): (x: A) => L
   <A, B, C, D, E, F, G, H, I, J, K, L, M>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
+    op1: Unary<A, B>,
+    op2: Unary<B, C>,
+    op3: Unary<C, D>,
+    op4: Unary<D, E>,
+    op5: Unary<E, F>,
+    op6: Unary<F, G>,
+    op7: Unary<G, H>,
+    op8: Unary<H, I>,
+    op9: Unary<I, J>,
+    op10: Unary<J, K>,
+    op11: Unary<K, L>,
+    op12: Unary<L, M>,
   ): (x: A) => M
-  <A, B, C, D, E, F, G, H, I, J, K, L, M, N>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
-    f13: (x: M) => N,
-  ): (x: A) => N
-  <A, B, C, D, E, F, G, H, I, J, K, L, M, N, O>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
-    f13: (x: M) => N,
-    f14: (x: N) => O,
-  ): (x: A) => O
-  <A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
-    f13: (x: M) => N,
-    f14: (x: N) => O,
-    f15: (x: O) => P,
-  ): (x: A) => P
-  <A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q>(
-    f1: (x: A) => B,
-    f2: (x: B) => C,
-    f3: (x: C) => D,
-    f4: (x: D) => E,
-    f5: (x: E) => F,
-    f6: (x: F) => G,
-    f7: (x: G) => H,
-    f8: (x: H) => I,
-    f9: (x: I) => J,
-    f10: (x: J) => K,
-    f11: (x: K) => L,
-    f12: (x: L) => M,
-    f13: (x: M) => N,
-    f14: (x: N) => O,
-    f15: (x: O) => P,
-    f16: (x: P) => Q,
-  ): (x: A) => Q
+  (...ops: Unary<any, any>[]): (x: any) => any
 } =
   (h: any, ...t: any[]) =>
   (x: any) =>
     pipe(h(x), ...(t as [any]))
+
+type Unary<T, R> = (source: T) => R
 
 /**
  * Combines multiple unsubscribe functions into a single function.

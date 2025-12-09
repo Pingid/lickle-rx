@@ -394,13 +394,17 @@ export const tap =
       error: (e) => {
         try {
           tapObserver.error?.(e)
-        } catch {}
+        } catch (e) {
+          console.error('Uncaught Error in tap error handler:', e)
+        }
         observer.error(e)
       },
       complete: () => {
         try {
           tapObserver.complete?.()
-        } catch {}
+        } catch (e) {
+          console.error('Uncaught Error in tap complete handler:', e)
+        }
         observer.complete()
       },
     })
