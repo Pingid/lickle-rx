@@ -231,19 +231,24 @@ export const concatMap =
  * ```
  */
 export const filter: {
+  <A>(): (oa: Observable<A>) => Observable<never>
   <A, B extends A = A>(predicate: (a: A) => a is B): (oa: Observable<A>) => Observable<B>
   <A, B extends A = A>(predicate: (a: A) => boolean): (oa: Observable<A>) => Observable<B>
-} = (pred) => (oa) => (observer) =>
-  oa({
-    next: (x: any) => {
-      try {
-        if (pred(x)) observer.next(x)
-      } catch (err) {
-        observer.error(err)
-      }
-    },
-    ...forward(observer),
-  })
+} = (<A, B extends A>(pred?: ((a: A) => a is B) | ((a: A) => boolean)) =>
+  (oa: Observable<A>): Observable<B> =>
+  (observer) => {
+    const predicate = pred ?? (() => false)
+    return oa({
+      next: (x) => {
+        try {
+          if (predicate(x)) observer.next(x as B)
+        } catch (err) {
+          observer.error(err)
+        }
+      },
+      ...forward(observer),
+    })
+  }) as any
 
 /**
  * Catches errors on the source Observable and handles them by returning a new Observable.

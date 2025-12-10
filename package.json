@@ -1,6 +1,6 @@
 {
   "name": "@lickle/rx",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "A minimal reactive programming library with Observables, Subjects, and composable operators",
   "author": "Dan Beaven <dm.beaven@gmail.com>",
   "repository": {
