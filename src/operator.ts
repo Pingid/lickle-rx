@@ -412,6 +412,39 @@ export const tap =
   }
 
 /**
+ * Runs a side effect for each value emitted by the source Observable,
+ * without emitting any values. Completes when the source completes.
+ *
+ * Use this operator when you only care about performing side effects
+ * and don't need to pass values downstream.
+ *
+ * @param fn The function to execute for each value
+ * @return A function that returns an Observable that emits nothing but completes
+ *
+ * @example
+ * ```ts
+ * const source$ = of(1, 2, 3)
+ * pipe(source$, effect((x) => console.log('processed:', x)))
+ * // logs: processed: 1, processed: 2, processed: 3
+ * // emits nothing
+ * ```
+ */
+export const effect =
+  <A>(fn: (value: A) => void) =>
+  (source: Observable<A>): Observable<never> =>
+  (observer) =>
+    source({
+      next: (x) => {
+        try {
+          fn(x)
+        } catch (err) {
+          observer.error(err)
+        }
+      },
+      ...forward(observer),
+    })
+
+/**
  * Emits only the first n values from the source Observable, then completes.
  *
  * @param count The maximum number of values to emit
@@ -1111,4 +1144,4 @@ export const observeOn =
 
 // ---------------- Utility Functions ----------------
 const forwardError = <E>(o: Observer<any, E>): Pick<Observer<any, E>, 'error'> => ({ error: o.error })
-const forward = <E>(o: Observer<any, E>) => ({ error: o.error, complete: o.complete })
+const forward = <A, E>(o: Observer<A, E>) => ({ error: o.error, complete: o.complete })
