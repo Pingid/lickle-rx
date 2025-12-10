@@ -1044,7 +1044,10 @@ export const shareReplay =
  * ```
  */
 export const shareReplayByKey =
-  <A, K>(getKey: (value: A) => K, options?: { maxKeys?: number }) =>
+  <A, K extends string | number | symbol = string | number | symbol>(
+    getKey: (value: A) => K,
+    options?: { maxKeys?: number },
+  ) =>
   (source: Observable<A>): Observable<A> => {
     const subject = replayByKeySubject<A, K>(getKey, options)
     let refCount = 0

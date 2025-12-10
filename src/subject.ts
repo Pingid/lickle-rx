@@ -206,7 +206,7 @@ export type BehaviorSubject<T, E = unknown> = Subject<T, E> & {
  * // New subscriber receives: { type: "user", data: user2 }, { type: "config", data: config1 }
  * ```
  */
-export const replayByKeySubject = <T, K, E = unknown>(
+export const replayByKeySubject = <T, K extends string | number | symbol = string | number | symbol, E = unknown>(
   getKey: (value: T) => K,
   options?: { maxKeys?: number },
 ): ReplayByKeySubject<T, K, E> => {
