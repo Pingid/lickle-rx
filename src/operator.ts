@@ -89,6 +89,64 @@ export const switchMap: <A, B>(transform: (a: A) => Observable<B>) => (source: O
   }
 
 /**
+ * Projects each source value to an Observable which is merged in the output Observable
+ * only if the previous projected Observable has completed.
+ *
+ * @param transform The function to apply to each value emitted by the source Observable.
+ * @return A function that accepts an Observable and returns an Observable
+ * that ignores source values while the inner Observable is active.
+ *
+ * @example
+ * ```ts
+ * const clicks$ = fromEvent(button, 'click')
+ * const result$ = pipe(
+ *   clicks$,
+ *   exhaustMap(() => interval(1000).pipe(take(3)))
+ * )
+ * // multiple clicks are ignored while the interval is running
+ * ```
+ */
+export const exhaustMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Observable<A>) => Observable<B> =
+  (transform) => (source) => (observer) => {
+    let innerUnsub: () => void = () => {}
+    let hasActiveInner = false
+    let sourceCompleted = false
+
+    const tryComplete = () => {
+      if (sourceCompleted && !hasActiveInner) observer.complete()
+    }
+
+    const sourceUnsub = source({
+      next: (x) => {
+        if (hasActiveInner) return
+        hasActiveInner = true
+        try {
+          innerUnsub = transform(x)({
+            next: observer.next,
+            ...forwardError(observer),
+            complete: () => {
+              hasActiveInner = false
+              tryComplete()
+            },
+          })
+        } catch (err) {
+          observer.error(err)
+        }
+      },
+      ...forwardError(observer),
+      complete: () => {
+        sourceCompleted = true
+        tryComplete()
+      },
+    })
+
+    return () => {
+      innerUnsub()
+      sourceUnsub()
+    }
+  }
+
+/**
  * Projects each source value to an Observable which is merged in the output Observable.
  * All inner Observables are subscribed to concurrently.
  *

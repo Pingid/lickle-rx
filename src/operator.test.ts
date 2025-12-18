@@ -1,9 +1,41 @@
 import { describe, it, expect, vi } from 'vitest'
 
 import { Observable, subscribe } from './observable.js'
-import { map, share } from './operator.js'
+import { map, share, exhaustMap } from './operator.js'
 import { of } from './constructor.js'
+import { subject } from './subject.js'
 import { pipe } from './util.js'
+
+describe('exhaustMap()', () => {
+  it('should ignore values while inner is active', () => {
+    const source = subject<string>()
+    const results: string[] = []
+    let innerObserver: any = null
+
+    const result$ = pipe(
+      source,
+      exhaustMap<string, string>((val) => (observer) => {
+        innerObserver = observer
+        observer.next('start ' + val)
+        return () => {}
+      }),
+    )
+
+    subscribe(result$, (x) => results.push(x))
+
+    source.next('A') // Inner A active
+    // results: ['start A']
+
+    source.next('B') // Should be ignored
+
+    innerObserver.complete() // Inner A completes
+
+    source.next('C') // Inner C active
+    // results: ['start A', 'start C']
+
+    expect(results).toEqual(['start A', 'start C'])
+  })
+})
 
 describe('map()', () => {
   it('should apply the transform function to each value emitted by the source', () => {
