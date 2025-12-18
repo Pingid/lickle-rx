@@ -38,6 +38,15 @@ export type ObservableValue<T> = T extends Observable<infer D> ? D : never
 export type ObservableError<T> = T extends Observable<any, infer E> ? E : never
 
 /**
+ * A type that can be converted to an Observable.
+ * Can be an Observable or a PromiseLike.
+ */
+export type ObservableInput<T, E = unknown> = Observable<T, E> | PromiseLike<T>
+
+/** Extracts the value type from an ObservableInput */
+export type ObservableInputValue<T> = T extends Observable<infer V> ? V : T extends PromiseLike<infer V> ? V : never
+
+/**
  * An observable that conforms to the TC39 Observable proposal and interoperates
  * with other reactive libraries (RxJS, etc.) via Symbol.observable.
  *

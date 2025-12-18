@@ -1,10 +1,62 @@
 import { describe, it, expect, vi } from 'vitest'
 
+import { map, share, exhaustMap, switchMap, concatMap } from './operator.js'
 import { Observable, subscribe } from './observable.js'
-import { map, share, exhaustMap } from './operator.js'
 import { of } from './constructor.js'
 import { subject } from './subject.js'
 import { pipe } from './util.js'
+
+describe('switchMap()', () => {
+  it('should support returning a Promise', async () => {
+    const results: string[] = []
+    const source$ = of('A', 'B')
+
+    const result$ = pipe(
+      source$,
+      switchMap((val) => Promise.resolve('promise ' + val)),
+    )
+
+    const observer = {
+      next: (x: string) => results.push(x),
+      complete: vi.fn(),
+      error: vi.fn(),
+    }
+
+    subscribe(result$, observer)
+
+    // Wait for promises to resolve
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(results).toEqual(['promise B'])
+    expect(observer.complete).toHaveBeenCalled()
+  })
+})
+
+describe('concatMap()', () => {
+  it('should support returning a Promise and wait for it', async () => {
+    const results: string[] = []
+    const source$ = of('A', 'B')
+
+    const result$ = pipe(
+      source$,
+      concatMap((val) => Promise.resolve('promise ' + val)),
+    )
+
+    const observer = {
+      next: (x: string) => results.push(x),
+      complete: vi.fn(),
+      error: vi.fn(),
+    }
+
+    subscribe(result$, observer)
+
+    // Wait for promises to resolve
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(results).toEqual(['promise A', 'promise B'])
+    expect(observer.complete).toHaveBeenCalled()
+  })
+})
 
 describe('exhaustMap()', () => {
   it('should ignore values while inner is active', () => {

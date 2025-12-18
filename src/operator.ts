@@ -3,9 +3,10 @@
  * @module
  */
 
+import { Observable, Unsubscribe, type Observer, ObservableInput } from './observable.js'
 import { subject, replaySubject, replayByKeySubject, type Subject } from './subject.js'
-import { Observable, Unsubscribe, type Observer } from './observable.js'
 import { asyncScheduler, Scheduler } from './scheduler.js'
+import { from } from './constructor.js'
 
 /**
  * Applies a given transform function to each value emitted by the source
@@ -54,7 +55,7 @@ export const map: <A, B>(transform: (a: A) => B) => (source: Observable<A>) => O
  * )
  * ```
  */
-export const switchMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Observable<A>) => Observable<B> =
+export const switchMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (source: Observable<A>) => Observable<B> =
   (transform) => (source) => (observer) => {
     let innerUnsub: () => void = () => {}
     let hasActiveInner = false
@@ -67,7 +68,7 @@ export const switchMap: <A, B>(transform: (a: A) => Observable<B>) => (source: O
         try {
           innerUnsub()
           hasActiveInner = true
-          innerUnsub = transform(x)({
+          innerUnsub = from(transform(x))({
             next: observer.next,
             ...forwardError(observer),
             complete: () => {
@@ -106,7 +107,7 @@ export const switchMap: <A, B>(transform: (a: A) => Observable<B>) => (source: O
  * // multiple clicks are ignored while the interval is running
  * ```
  */
-export const exhaustMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Observable<A>) => Observable<B> =
+export const exhaustMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (source: Observable<A>) => Observable<B> =
   (transform) => (source) => (observer) => {
     let innerUnsub: () => void = () => {}
     let hasActiveInner = false
@@ -121,7 +122,7 @@ export const exhaustMap: <A, B>(transform: (a: A) => Observable<B>) => (source: 
         if (hasActiveInner) return
         hasActiveInner = true
         try {
-          innerUnsub = transform(x)({
+          innerUnsub = from(transform(x))({
             next: observer.next,
             ...forwardError(observer),
             complete: () => {
@@ -163,7 +164,7 @@ export const exhaustMap: <A, B>(transform: (a: A) => Observable<B>) => (source: 
  * )
  * ```
  */
-export const mergeMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Observable<A>) => Observable<B> =
+export const mergeMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (source: Observable<A>) => Observable<B> =
   (transform) => (source) => (observer) => {
     const innerSubs = new Set<() => void>()
     let activeCount = 0
@@ -176,7 +177,7 @@ export const mergeMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Ob
         try {
           activeCount++
           let innerUnsub: () => void
-          innerUnsub = transform(x)({
+          innerUnsub = from(transform(x))({
             next: observer.next,
             ...forwardError(observer),
             complete: () => {
@@ -221,7 +222,7 @@ export const mergeMap: <A, B>(transform: (a: A) => Observable<B>) => (source: Ob
  * ```
  */
 export const concatMap =
-  <A, B>(transform: (a: A) => Observable<B>) =>
+  <A, B>(transform: (a: A) => ObservableInput<B>) =>
   (source: Observable<A>): Observable<B> =>
   (observer) => {
     const queue: A[] = []
@@ -239,7 +240,7 @@ export const concatMap =
       active = true
       const value = queue.shift()!
       try {
-        currentUnsub = transform(value)({
+        currentUnsub = from(transform(value))({
           next: observer.next,
           ...forwardError(observer),
           complete: () => {
@@ -324,7 +325,7 @@ export const filter: {
  * ```
  */
 export const catchError =
-  <A, B>(selector: (err: any) => Observable<B>) =>
+  <A, B>(selector: (err: any) => ObservableInput<B>) =>
   (source: Observable<A>): Observable<A | B> =>
   (observer) => {
     let innerUnsub: (() => void) | null = null
@@ -335,7 +336,7 @@ export const catchError =
       complete: observer.complete,
       error: (err) => {
         try {
-          const result$ = selector(err)
+          const result$ = from(selector(err))
           innerUnsub = result$({
             next: observer.next,
             error: observer.error,

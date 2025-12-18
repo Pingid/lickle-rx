@@ -3,7 +3,7 @@
  * @module
  */
 
-import { Observable, Observer, Unsubscribe } from './observable.js'
+import { Observable, Observer, Unsubscribe, ObservableInput, ObservableInputValue } from './observable.js'
 import { asyncScheduler, Scheduler } from './scheduler.js'
 
 /**
@@ -96,9 +96,26 @@ export const fromPromise = <T, E = unknown>(promise: Promise<T>, onError?: (erro
 }
 
 /**
- * Alias for fromPromise for compatibility.
+ * Creates an observable from an ObservableInput (Observable or Promise).
+ *
+ * @param input The Observable or Promise to convert
+ * @return The Observable
+ *
+ * @example
+ * ```ts
+ * const fromPromise$ = from(fetch('/api/data'))
+ * const fromObs$ = from(of(1, 2, 3))
+ * ```
  */
-export const from = fromPromise
+export const from = <T, E = unknown>(input: ObservableInput<T, E>): Observable<T, E> => {
+  if (typeof input === 'function') {
+    return input as Observable<T, E>
+  }
+  if (input && typeof (input as PromiseLike<T>).then === 'function') {
+    return fromPromise(input as Promise<T>) as Observable<T, E>
+  }
+  throw new Error('Invalid input: expected Observable or Promise')
+}
 
 /**
  * Creates an observable that emits sequential numbers at specified intervals.
