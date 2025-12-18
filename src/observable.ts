@@ -1,6 +1,17 @@
 /**
- * Core observable types and functions.
- * @module
+ * Core Observable types and primitives.
+ *
+ * This module defines the fundamental `Observable` and `Observer` types,
+ * along with the `subscribe` function which is the primary way to execute
+ * an observable.
+ *
+ * Key exports:
+ * - `Observable`: Type definition for a lazy push-based data source.
+ * - `Observer`: Interface for receiving data.
+ * - `subscribe`: Function to start an Observable execution.
+ * - `toInterop`: Convert to a TC39/Symbol.observable compatible object.
+ *
+ * @module observable
  */
 import 'symbol-observable'
 
@@ -39,12 +50,21 @@ export type ObservableError<T> = T extends Observable<any, infer E> ? E : never
 
 /**
  * A type that can be converted to an Observable.
- * Can be an Observable or a PromiseLike.
+ * Can be an Observable, PromiseLike, Iterable, or AsyncIterable.
  */
-export type ObservableInput<T, E = unknown> = Observable<T, E> | PromiseLike<T>
+export type ObservableInput<T, E = unknown> = Observable<T, E> | PromiseLike<T> | Iterable<T> | AsyncIterable<T>
 
 /** Extracts the value type from an ObservableInput */
-export type ObservableInputValue<T> = T extends Observable<infer V> ? V : T extends PromiseLike<infer V> ? V : never
+export type ObservableInputValue<T> =
+  T extends Observable<infer V>
+    ? V
+    : T extends PromiseLike<infer V>
+      ? V
+      : T extends Iterable<infer V>
+        ? V
+        : T extends AsyncIterable<infer V>
+          ? V
+          : never
 
 /**
  * An observable that conforms to the TC39 Observable proposal and interoperates
@@ -63,7 +83,7 @@ export type InteropObservable<T> = {
  * Converts a lickle-rx Observable to an InteropObservable that can be consumed
  * by other reactive libraries via Symbol.observable.
  *
- * @param obs The observable to convert
+ * @param obs - The observable to convert
  * @returns An InteropObservable with subscribe and Symbol.observable methods
  *
  * @example
@@ -90,7 +110,7 @@ export const toInterop = <T>(obs: Observable<T>): InteropObservable<T> => {
  * Creates an observable from a callback function.
  * This is an identity function useful for type inference.
  *
- * @param cb Function that receives an observer and returns an unsubscribe function
+ * @param cb - Function that receives an observer and returns an unsubscribe function
  * @returns The observable
  *
  * @example
@@ -108,8 +128,8 @@ export const observable = <T, E = unknown>(cb: (observer: Observer<T, E>) => Uns
  * Subscribes to an observable with a callback or partial observer.
  * Provides default handlers: empty next/complete, console.error for errors.
  *
- * @param observable The observable to subscribe to
- * @param observer A callback for next values, or a partial Observer
+ * @param observable - The observable to subscribe to
+ * @param observer - A callback for next values, or a partial Observer
  * @returns Function to unsubscribe
  *
  * @example

@@ -1,16 +1,27 @@
 /**
- * Functions to create observables from various sources.
- * @module
+ * Factory functions to create Observables.
+ *
+ * This module contains functions that create Observables from various data sources
+ * like values, arrays, promises, events, and timers.
+ *
+ * Key exports:
+ * - {@link of}: Create from a set of values.
+ * - {@link from}: Create from an Array, Promise, Iterable, or Observable.
+ * - {@link fromEvent}: Create from an EventTarget.
+ * - {@link interval}, {@link timer}: Create time-based emissions.
+ * - {@link never}, {@link empty}: Create special-case observables.
+ *
+ * @module constructor
  */
 
-import { Observable, Observer, Unsubscribe, ObservableInput, ObservableInputValue } from './observable.js'
-import { asyncScheduler, Scheduler } from './scheduler.js'
+import { Observable, Observer, Unsubscribe, ObservableInput } from './observable.js'
+import { asyncScheduler, Scheduler, animationFrameScheduler, createVirtualScheduler } from './scheduler.js'
 
 /**
  * Converts the arguments to an observable sequence.
  *
- * @param args Values to emit
- * @return Observable that emits the arguments and then completes.
+ * @param args - Values to emit
+ * @returns Observable that emits the arguments and then completes.
  *
  * @example
  * ```ts
@@ -31,9 +42,9 @@ export const of: <T extends any[]>(...args: T) => Observable<T[number]> =
  * Creates an observable from an async function with cancellation support.
  * The AbortSignal is aborted when the observable is unsubscribed.
  *
- * @param fn Async function that receives an AbortSignal
- * @param onError Optional error transformer
- * @return Observable that emits the resolved value and completes
+ * @param fn - Async function that receives an AbortSignal
+ * @param onError - Optional error transformer
+ * @returns Observable that emits the resolved value and completes
  *
  * @example
  * ```ts
@@ -67,8 +78,8 @@ export const fromAsync = <T, E = unknown>(
 /**
  * Creates an observable from a Promise.
  *
- * @param promise The promise to convert
- * @return Observable that emits the resolved value and completes
+ * @param promise - The promise to convert
+ * @returns Observable that emits the resolved value and completes
  *
  * @example
  * ```ts
@@ -96,15 +107,16 @@ export const fromPromise = <T, E = unknown>(promise: Promise<T>, onError?: (erro
 }
 
 /**
- * Creates an observable from an ObservableInput (Observable or Promise).
+ * Creates an observable from an ObservableInput (Observable, Promise, Iterable, or AsyncIterable).
  *
- * @param input The Observable or Promise to convert
- * @return The Observable
+ * @param input - The input to convert
+ * @returns The Observable
  *
  * @example
  * ```ts
  * const fromPromise$ = from(fetch('/api/data'))
- * const fromObs$ = from(of(1, 2, 3))
+ * const fromArray$ = from([1, 2, 3])
+ * const fromGen$ = from(async function* () { yield 1 })
  * ```
  */
 export const from = <T, E = unknown>(input: ObservableInput<T, E>): Observable<T, E> => {
@@ -114,17 +126,55 @@ export const from = <T, E = unknown>(input: ObservableInput<T, E>): Observable<T
   if (input && typeof (input as PromiseLike<T>).then === 'function') {
     return fromPromise(input as Promise<T>) as Observable<T, E>
   }
-  throw new Error('Invalid input: expected Observable or Promise')
+  if (input && typeof (input as Iterable<T>)[Symbol.iterator] === 'function') {
+    return (observer) => {
+      try {
+        for (const item of input as Iterable<T>) {
+          observer.next(item)
+        }
+        observer.complete()
+      } catch (err) {
+        observer.error(err as E)
+      }
+      return () => {}
+    }
+  }
+  if (input && typeof (input as AsyncIterable<T>)[Symbol.asyncIterator] === 'function') {
+    return (observer) => {
+      const iterator = (input as AsyncIterable<T>)[Symbol.asyncIterator]()
+      let cancelled = false
+      const process = async () => {
+        try {
+          while (!cancelled) {
+            const { value, done } = await iterator.next()
+            if (cancelled) return
+            if (done) {
+              observer.complete()
+              return
+            }
+            observer.next(value)
+          }
+        } catch (err) {
+          observer.error(err as E)
+        }
+      }
+      process()
+      return () => {
+        cancelled = true
+      }
+    }
+  }
+  throw new Error('Invalid input: expected Observable, Promise, Iterable, or AsyncIterable')
 }
 
 /**
  * Creates an observable that emits sequential numbers at specified intervals.
  *
- * @param period The interval period in milliseconds
- * @param scheduler Scheduler to use for timing. Defaults to `asyncScheduler`.
- *   Use `animationFrameScheduler` for smooth UI updates, or `createVirtualScheduler()`
+ * @param period - The interval period in milliseconds
+ * @param scheduler - Scheduler to use for timing. Defaults to {@link asyncScheduler}.
+ *   Use {@link animationFrameScheduler} for smooth UI updates, or {@link createVirtualScheduler}
  *   for testing.
- * @return Observable that emits incrementing numbers
+ * @returns Observable that emits incrementing numbers
  *
  * @example
  * ```ts
@@ -144,12 +194,12 @@ export const interval = (period: number, scheduler: Scheduler = asyncScheduler):
 /**
  * Creates an observable that emits after a delay, optionally repeating.
  *
- * @param delay Initial delay in milliseconds
- * @param period Optional period for repeating emissions. If omitted, completes after first emission.
- * @param scheduler Scheduler to use for timing. Defaults to `asyncScheduler`.
- *   Use `animationFrameScheduler` for smooth UI updates, or `createVirtualScheduler()`
+ * @param delay - Initial delay in milliseconds
+ * @param period - Optional period for repeating emissions. If omitted, completes after first emission.
+ * @param scheduler - Scheduler to use for timing. Defaults to {@link asyncScheduler}.
+ *   Use {@link animationFrameScheduler} for smooth UI updates, or {@link createVirtualScheduler}
  *   for testing.
- * @return Observable that emits after delay (and optionally at intervals)
+ * @returns Observable that emits after delay (and optionally at intervals)
  *
  * @example
  * ```ts
@@ -198,7 +248,7 @@ export const timer = (delay: number, period?: number, scheduler: Scheduler = asy
 /**
  * Creates an observable that never emits any values.
  *
- * @return Observable that never emits
+ * @returns Observable that never emits
  *
  * @example
  * ```ts
@@ -213,7 +263,7 @@ export const never = <T = never>(): Observable<T> => {
 /**
  * Creates an observable that immediately completes without emitting.
  *
- * @return Observable that completes immediately
+ * @returns Observable that completes immediately
  *
  * @example
  * ```ts
@@ -231,10 +281,10 @@ export const empty = <T = never>(): Observable<T> => {
 /**
  * Creates an observable from DOM events.
  *
- * @param target The event target (Element, Document, Window, etc)
- * @param eventName The name of the event to listen for
- * @param options Optional event listener options
- * @return Observable that emits events when they occur
+ * @param target - The event target (Element, Document, Window, etc)
+ * @param eventName - The name of the event to listen for
+ * @param options - Optional event listener options
+ * @returns Observable that emits events when they occur
  *
  * @example
  * ```ts
@@ -254,9 +304,9 @@ export const fromEvent: <T extends EventTarget>(
   }
 }
 
-type EventTarget = {
+export type EventTarget = {
   addEventListener: (eventName: string, handler: (e: any) => void, options?: any) => void
   removeEventListener: (eventName: string, handler: (e: any) => void, options?: any) => void
 }
-type EventTargetOptions<T extends EventTarget> = Parameters<T['addEventListener']>[2]
-type EventTargetNext<T extends EventTarget> = Parameters<Parameters<T['addEventListener']>[1]>[0]
+export type EventTargetOptions<T extends EventTarget> = Parameters<T['addEventListener']>[2]
+export type EventTargetNext<T extends EventTarget> = Parameters<Parameters<T['addEventListener']>[1]>[0]

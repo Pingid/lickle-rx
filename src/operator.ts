@@ -1,20 +1,30 @@
 /**
- * Operators that transform, filter, or combine values from observables.
- * @module
+ * Pipeable operators for transforming, filtering, and managing Observable streams.
+ *
+ * Operators are functions that take an Observable and return a new Observable.
+ * They are typically used with the `pipe` function.
+ *
+ * Categories:
+ * - Transformation: `map`, `switchMap`, `mergeMap`, `concatMap`, `scan`
+ * - Filtering: `filter`, `take`, `takeUntil`, `debounceTime`, `distinctUntilChanged`
+ * - Utility: `tap`, `delay`, `catchError`
+ * - Multicasting: `share`, `shareReplay`
+ *
+ * @module operator
  */
 
 import { Observable, Unsubscribe, type Observer, ObservableInput } from './observable.js'
 import { subject, replaySubject, replayByKeySubject, type Subject } from './subject.js'
-import { asyncScheduler, Scheduler } from './scheduler.js'
+import { asyncScheduler, Scheduler, animationFrameScheduler, createVirtualScheduler } from './scheduler.js'
 import { from } from './constructor.js'
 
 /**
  * Applies a given transform function to each value emitted by the source
  * Observable, and emits the resulting values as an Observable.
  *
- * @param {function(value: A): B} transform The function to apply
+ * @param transform - The function to apply
  * to each `value` emitted by the source Observable.
- * @return A function that accepts an Observable and returns an Observable
+ * @returns A function that accepts an Observable and returns an Observable
  * where the emitted values are transformed.
  *
  * @example
@@ -42,8 +52,8 @@ export const map: <A, B>(transform: (a: A) => B) => (source: Observable<A>) => O
  * Projects each emitted source value to an Observable which is merged in the output
  * Observable, emitting values only from the most recently projected Observable.
  *
- * @param transform The function to apply to each value emitted by the source Observable.
- * @return A function that accepts an Observable and returns an Observable
+ * @param transform - The function to apply to each value emitted by the source Observable.
+ * @returns A function that accepts an Observable and returns an Observable
  * where the emitted values are transformed.
  *
  * @example
@@ -93,8 +103,8 @@ export const switchMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (sour
  * Projects each source value to an Observable which is merged in the output Observable
  * only if the previous projected Observable has completed.
  *
- * @param transform The function to apply to each value emitted by the source Observable.
- * @return A function that accepts an Observable and returns an Observable
+ * @param transform - The function to apply to each value emitted by the source Observable.
+ * @returns A function that accepts an Observable and returns an Observable
  * that ignores source values while the inner Observable is active.
  *
  * @example
@@ -151,8 +161,8 @@ export const exhaustMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (sou
  * Projects each source value to an Observable which is merged in the output Observable.
  * All inner Observables are subscribed to concurrently.
  *
- * @param transform The function to apply to each value emitted by the source Observable.
- * @return A function that accepts an Observable and returns an Observable
+ * @param transform - The function to apply to each value emitted by the source Observable.
+ * @returns A function that accepts an Observable and returns an Observable
  * that emits values from all inner Observables concurrently.
  *
  * @example
@@ -208,8 +218,8 @@ export const mergeMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (sourc
  * Subscribes to each inner Observable in sequence, waiting for each to complete
  * before subscribing to the next.
  *
- * @param transform The function to apply to each value emitted by the source Observable.
- * @return A function that accepts an Observable and returns an Observable
+ * @param transform - The function to apply to each value emitted by the source Observable.
+ * @returns A function that accepts an Observable and returns an Observable
  * that emits values from inner Observables sequentially.
  *
  * @example
@@ -274,12 +284,12 @@ export const concatMap =
  * Filter items emitted by the source Observable by only emitting those that
  * satisfy a specified predicate.
  *
- * @param predicate The function to apply
+ * @param predicate - The function to apply
  * evaluates each value emitted by the source Observable. If it returns `true`,
  * the value is emitted, if `false` the value is not passed to the output
  * Observable.
  *
- * @return A function that returns an Observable that emits items from the
+ * @returns A function that returns an Observable that emits items from the
  * source Observable that satisfy the specified `predicate`.
  *
  * @example
@@ -313,8 +323,8 @@ export const filter: {
  * Catches errors on the source Observable and handles them by returning a new Observable.
  * If the selector throws, that error is forwarded to the observer.
  *
- * @param selector Function that receives the error and returns an Observable to continue with
- * @return A function that returns an Observable that recovers from errors
+ * @param selector - Function that receives the error and returns an Observable to continue with
+ * @returns A function that returns an Observable that recovers from errors
  *
  * @example
  * ```ts
@@ -383,11 +393,11 @@ export const finalize =
  * Maintains some state based on the values emited from a source observable and emits the state
  * when the source emits.
  *
- * @param initial A starting value to initialize the internal state
- * @param accumulator A "reducer function". This will be called for each value after an initial state is
+ * @param initial - A starting value to initialize the internal state
+ * @param accumulator - A "reducer function". This will be called for each value after an initial state is
  * acquired.
  *
- * @return A function that returns an Observable of the accumulated values.
+ * @returns A function that returns an Observable of the accumulated values.
  *
  * @example
  * ```ts
@@ -417,9 +427,9 @@ export const scan: <A, B>(initial: A, accumulator: (a: A, b: B) => A) => (source
  * Accepts either a function (called on next) or a partial Observer to tap into
  * next, error, and/or complete.
  *
- * @param observerOrNext A callback or partial Observer to execute on emissions
+ * @param observerOrNext - A callback or partial Observer to execute on emissions
  *
- * @return A function that returns an Observable identical to the source, but
+ * @returns A function that returns an Observable identical to the source, but
  * runs the specified Observer or callback(s) for each notification.
  *
  * @example
@@ -482,8 +492,8 @@ export const tap =
  * Use this operator when you only care about performing side effects
  * and don't need to pass values downstream.
  *
- * @param fn The function to execute for each value
- * @return A function that returns an Observable that emits nothing but completes
+ * @param fn - The function to execute for each value
+ * @returns A function that returns an Observable that emits nothing but completes
  *
  * @example
  * ```ts
@@ -511,8 +521,8 @@ export const effect =
 /**
  * Emits only the first n values from the source Observable, then completes.
  *
- * @param count The maximum number of values to emit
- * @return A function that returns an Observable that emits only the first n values
+ * @param count - The maximum number of values to emit
+ * @returns A function that returns an Observable that emits only the first n values
  *
  * @example
  * ```ts
@@ -565,8 +575,8 @@ export const take =
 /**
  * Emits values from the source Observable until the notifier Observable emits.
  *
- * @param notifier The Observable that causes the output to stop when it emits
- * @return A function that returns an Observable that emits until the notifier emits
+ * @param notifier - The Observable that causes the output to stop when it emits
+ * @returns A function that returns an Observable that emits until the notifier emits
  *
  * @example
  * ```ts
@@ -607,8 +617,8 @@ export const takeUntil: <A>(notifier: Observable<any>) => (source: Observable<A>
 /**
  * Emits values from the source Observable while the predicate returns true.
  *
- * @param predicate The function that evaluates each value
- * @return A function that returns an Observable that emits while the predicate is true
+ * @param predicate - The function that evaluates each value
+ * @returns A function that returns an Observable that emits while the predicate is true
  *
  * @example
  * ```ts
@@ -646,8 +656,8 @@ export const takeWhile: <A>(
 /**
  * Prepends values to the beginning of the Observable sequence.
  *
- * @param values The values to prepend
- * @return A function that returns an Observable with the values prepended
+ * @param values - The values to prepend
+ * @returns A function that returns an Observable with the values prepended
  *
  * @example
  * ```ts
@@ -674,8 +684,8 @@ export const startWith: <A, B>(...values: A[]) => (source: Observable<B>) => Obs
 /**
  * Emits values that are distinct from the previous emission.
  *
- * @param compareFn Optional comparison function (defaults to ===)
- * @return A function that returns an Observable that filters consecutive duplicates
+ * @param compareFn - Optional comparison function (defaults to ===)
+ * @returns A function that returns an Observable that filters consecutive duplicates
  *
  * @example
  * ```ts
@@ -710,7 +720,7 @@ export const distinctUntilChanged =
  * Emits consecutive pairs of values from the source Observable.
  * The first emission occurs after the second value is received.
  *
- * @return A function that returns an Observable emitting [previous, current] pairs
+ * @returns A function that returns an Observable emitting [previous, current] pairs
  *
  * @example
  * ```ts
@@ -739,9 +749,9 @@ export const pairwise =
 
 /**
  * Emits [previous, current] pairs for each value, starting with [null, firstValue].
- * Unlike pairwise(), this emits on the first value with null as the previous.
+ * Unlike {@link pairwise}(), this emits on the first value with null as the previous.
  *
- * @return A function that returns an Observable emitting [previous, current] pairs
+ * @returns A function that returns an Observable emitting [previous, current] pairs
  *
  * @example
  * ```ts
@@ -768,8 +778,8 @@ export const withPrevious =
  * Combines the source Observable with the latest values from other Observables.
  * Emits only when the source emits, and only after all others have emitted at least once.
  *
- * @param others Observables to combine with the source.
- * @return A function that returns an Observable emitting arrays of [source, ...others].
+ * @param others - Observables to combine with the source.
+ * @returns A function that returns an Observable emitting arrays of [source, ...others].
  *
  * @example
  * ```ts
@@ -812,11 +822,11 @@ export const withLatestFrom =
 /**
  * Emits a value only after a specified time has passed without another emission.
  *
- * @param duration The debounce duration in milliseconds.
- * @param scheduler Scheduler to use for timing. Defaults to `asyncScheduler`.
- *   Use `animationFrameScheduler` for frame-synced debouncing, or
- *   `createVirtualScheduler()` for testing.
- * @return A function that returns an Observable that debounces emissions.
+ * @param duration - The debounce duration in milliseconds.
+ * @param scheduler - Scheduler to use for timing. Defaults to {@link asyncScheduler}.
+ *   Use {@link animationFrameScheduler} for frame-synced debouncing, or
+ *   {@link createVirtualScheduler} for testing.
+ * @returns A function that returns an Observable that debounces emissions.
  *
  * @example
  * ```ts
@@ -876,8 +886,8 @@ export const debounceTime =
 /**
  * Emits a value, then ignores subsequent values for a specified duration.
  *
- * @param duration The throttle duration in milliseconds.
- * @return A function that returns an Observable that throttles emissions.
+ * @param duration - The throttle duration in milliseconds.
+ * @returns A function that returns an Observable that throttles emissions.
  *
  * @example
  * ```ts
@@ -906,8 +916,8 @@ export const throttleTime =
 /**
  * Delays the emission of each value by a specified time.
  *
- * @param duration The delay duration in milliseconds.
- * @return A function that returns an Observable that delays emissions.
+ * @param duration - The delay duration in milliseconds.
+ * @returns A function that returns an Observable that delays emissions.
  *
  * @example
  * ```ts
@@ -952,8 +962,8 @@ export const delay =
 /**
  * Collects values into arrays and emits them at specified intervals.
  *
- * @param duration The buffer duration in milliseconds.
- * @return A function that returns an Observable that emits buffered arrays.
+ * @param duration - The buffer duration in milliseconds.
+ * @returns A function that returns an Observable that emits buffered arrays.
  *
  * @example
  * ```ts
@@ -992,7 +1002,7 @@ export const bufferTime =
  * Shares a single subscription to the source among multiple subscribers.
  * Subscribes to source on first subscriber, unsubscribes when all unsubscribe.
  *
- * @return A function that returns a shared Observable.
+ * @returns A function that returns a shared Observable.
  *
  * @example
  * ```ts
@@ -1042,8 +1052,8 @@ export const share =
 /**
  * Shares a single subscription and replays the last N values to new subscribers.
  *
- * @param bufferSize Number of values to replay (default: 1)
- * @return A function that returns a shared Observable with replay.
+ * @param bufferSize - Number of values to replay (default: 1)
+ * @returns A function that returns a shared Observable with replay.
  *
  * @example
  * ```ts
@@ -1083,9 +1093,9 @@ export const shareReplay =
  * Useful for sharing event streams with discriminated unions where you want late
  * subscribers to receive the latest event of each type.
  *
- * @param getKey Function to extract the key from a value
- * @param options.maxKeys Maximum number of keys to cache (default: Infinity). When exceeded, oldest keys are evicted.
- * @return A function that returns a shared Observable with replay by key.
+ * @param getKey - Function to extract the key from a value
+ * @param options.maxKeys - Maximum number of keys to cache (default: Infinity). When exceeded, oldest keys are evicted.
+ * @returns A function that returns a shared Observable with replay by key.
  *
  * @example
  * ```ts
@@ -1144,9 +1154,9 @@ export const shareReplayByKey =
  * - Defer low-priority work until the browser is idle
  * - Control microtask vs macrotask execution order
  *
- * @param scheduler The scheduler to use for re-emitting notifications.
- * @param delay Optional delay in milliseconds (defaults to 0).
- * @return A function that returns an Observable emitting on the scheduler.
+ * @param scheduler - The scheduler to use for re-emitting notifications.
+ * @param delay - Optional delay in milliseconds (defaults to 0).
+ * @returns A function that returns an Observable emitting on the scheduler.
  *
  * @example Sync to animation frames for smooth rendering
  * ```ts

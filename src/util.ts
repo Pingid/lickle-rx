@@ -1,6 +1,14 @@
 /**
- * Utility functions for composing observables.
- * @module
+ * General utility functions for functional composition and cleanup.
+ *
+ * These utilities are used to compose operators and manage subscriptions.
+ *
+ * Key exports:
+ * - {@link pipe}: Compose functions left-to-right (used for operators).
+ * - {@link flow}: Compose functions left-to-right into a new function.
+ * - {@link dispose}: Combine multiple unsubscribe functions.
+ *
+ * @module util
  */
 
 import { Unsubscribe } from './observable.js'
@@ -8,9 +16,9 @@ import { Unsubscribe } from './observable.js'
 /**
  * Pipes a value through a series of functions, left to right.
  *
- * @param x The initial value
- * @param fns Functions to apply in sequence
- * @return The result of applying all functions
+ * @param x - The initial value
+ * @param fns - Functions to apply in sequence
+ * @returns The result of applying all functions
  *
  * @example
  * ```ts
@@ -119,8 +127,8 @@ export const pipe: {
 /**
  * Composes functions left to right, returning a new function.
  *
- * @param fns Functions to compose
- * @return A function that applies all functions in sequence
+ * @param fns - Functions to compose
+ * @returns A function that applies all functions in sequence
  *
  * @example
  * ```ts
@@ -225,14 +233,14 @@ export const flow: {
   (x: any) =>
     pipe(h(x), ...(t as [any]))
 
-type Unary<T, R> = (source: T) => R
+export type Unary<T, R> = (source: T) => R
 
 /**
  * Combines multiple unsubscribe functions into a single function.
  * Accepts nested arrays which are flattened before disposal.
  *
- * @param args Unsubscribe functions or arrays of them
- * @return A single function that calls all provided unsubscribe functions
+ * @param args - Unsubscribe functions or arrays of them
+ * @returns A single function that calls all provided unsubscribe functions
  *
  * @example
  * ```ts

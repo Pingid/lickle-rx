@@ -1,6 +1,16 @@
 /**
- * Subjects for multicasting values to multiple subscribers.
- * @module
+ * Subjects for multicasting and state management.
+ *
+ * A Subject is a special type of Observable that allows values to be
+ * multicasted to many Observers. Subjects are like EventEmitters.
+ *
+ * Key exports:
+ * - {@link subject}: Simple multicast subject.
+ * - {@link behaviorSubject}: Holds the current value and emits it to new subscribers.
+ * - {@link replaySubject}: Buffers and replays values to new subscribers.
+ * - {@link replayByKeySubject}: Caches and replays the latest value for each key.
+ *
+ * @module subject
  */
 
 import { Observable, Observer } from './observable.js'
@@ -61,7 +71,7 @@ export type Subject<T, E = unknown> = Observable<T, E> & {
 /**
  * Creates a ReplaySubject that buffers values and replays them to new subscribers.
  *
- * @param bufferSize Maximum number of values to buffer (default: Infinity)
+ * @param bufferSize - Maximum number of values to buffer (default: Infinity)
  *
  * @example
  * ```ts
@@ -126,7 +136,7 @@ export type ReplaySubject<T, E = unknown> = Subject<T, E> & {
 /**
  * Creates a BehaviorSubject that holds a current value and emits it to new subscribers.
  *
- * @param initialValue The initial value
+ * @param initialValue - The initial value
  *
  * @example
  * ```ts
@@ -189,8 +199,8 @@ export type BehaviorSubject<T, E = unknown> = Subject<T, E> & {
  * Useful for event streams with discriminated unions where you want to replay
  * the latest event of each type.
  *
- * @param getKey Function to extract the key from a value
- * @param options.maxKeys Maximum number of keys to cache (default: Infinity). When exceeded, oldest keys are evicted.
+ * @param getKey - Function to extract the key from a value
+ * @param options.maxKeys - Maximum number of keys to cache (default: Infinity). When exceeded, oldest keys are evicted.
  *
  * @example
  * ```ts

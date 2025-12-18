@@ -1,19 +1,19 @@
 /**
- * Schedulers control when work is executed.
+ * Schedulers for controlling execution timing and concurrency.
  *
  * A scheduler provides two capabilities:
  * - `now()`: Returns the current time
  * - `schedule(work, delay?)`: Executes work after an optional delay
  *
  * Built-in schedulers:
- * - `asyncScheduler`: Uses `setTimeout`, suitable for most time-based operations
- * - `asapScheduler`: Uses microtasks (Promise.resolve), faster than setTimeout
- * - `animationFrameScheduler`: Uses `requestAnimationFrame`, ideal for UI animations
- * - `idleScheduler`: Uses `requestIdleCallback`, for low-priority background work
- * - `createQueueScheduler()`: Synchronous trampoline scheduler, prevents stack overflow
- * - `createVirtualScheduler()`: Virtual time scheduler for testing
+ * - {@link asyncScheduler}: Uses `setTimeout`, suitable for most time-based operations
+ * - {@link asapScheduler}: Uses microtasks (Promise.resolve), faster than setTimeout
+ * - {@link animationFrameScheduler}: Uses `requestAnimationFrame`, ideal for UI animations
+ * - {@link idleScheduler}: Uses `requestIdleCallback`, for low-priority background work
+ * - {@link createQueueScheduler}: Synchronous trampoline scheduler, prevents stack overflow
+ * - {@link createVirtualScheduler}: Virtual time scheduler for testing
  *
- * @module
+ * @module scheduler
  */
 
 import { Unsubscribe } from './observable.js'

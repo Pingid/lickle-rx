@@ -1,6 +1,17 @@
 /**
- * This module contains functions to combine multiple observables.
- * @module
+ * Functions to combine multiple Observables into one.
+ *
+ * These functions take multiple input Observables and merge, concatenate,
+ * or combine their values in various ways to produce a new Observable.
+ *
+ * Key exports:
+ * - {@link merge}: Interleave values from multiple observables.
+ * - {@link combineLatest}: Combine the latest values from multiple observables.
+ * - {@link zip}: Combine values from multiple observables by index.
+ * - {@link concat}: Subscribe to observables in sequence.
+ * - {@link race}: Mirror the first observable to emit.
+ *
+ * @module combinator
  */
 
 import { Observable, ObservableValue } from './observable.js'
@@ -10,8 +21,8 @@ import { pipe } from './util.js'
  * Creates an output Observable which concurrently emits all values from every
  * given input Observable.
  *
- * @param sources Input Observables to merge together.
- * @return Observable that emits items from all input Observables.
+ * @param sources - Input Observables to merge together.
+ * @returns Observable that emits items from all input Observables.
  *
  * @example
  * ```ts
@@ -34,8 +45,8 @@ export const merge: <A extends Observable<any>[]>(...sources: A) => Observable<O
  * calculated from the latest values of each input Observable.
  * Emits only after all inputs have emitted at least once.
  *
- * @param sources Input Observables to combine.
- * @return Observable that emits arrays of the latest values.
+ * @param sources - Input Observables to combine.
+ * @returns Observable that emits arrays of the latest values.
  *
  * @example
  * ```ts
@@ -74,12 +85,12 @@ export const combineLatest = <T extends Observable<any>[]>(
  * Combines multiple Observables by emitting arrays of values at matching indices.
  * Emits when all sources have emitted a value at the current index.
  *
- * @param options Optional configuration object with `maxBuffer` to limit memory usage.
+ * @param options - Optional configuration object with `maxBuffer` to limit memory usage.
  *   - `maxBuffer`: Maximum values to buffer per source before throwing an error.
  *     Defaults to `Infinity`. Set this to prevent memory leaks when sources emit at
  *     different rates.
- * @param sources Input Observables to zip together.
- * @return Observable that emits arrays of values at matching indices.
+ * @param sources - Input Observables to zip together.
+ * @returns Observable that emits arrays of values at matching indices.
  *
  * @example
  * ```ts
@@ -168,8 +179,8 @@ export const zip: {
  * Subscribes to each source only after the previous one completes.
  * If a source never completes, subsequent sources will not be subscribed.
  *
- * @param sources Input Observables to concatenate.
- * @return Observable that emits values from sources in sequence.
+ * @param sources - Input Observables to concatenate.
+ * @returns Observable that emits values from sources in sequence.
  *
  * @example
  * ```ts
@@ -206,8 +217,8 @@ export const concat = <T>(...sources: Observable<T>[]): Observable<T> => {
  * Returns an Observable that mirrors the first source Observable to emit.
  * All other sources are unsubscribed once a winner is determined.
  *
- * @param sources Input Observables to race.
- * @return Observable that mirrors the first source to emit.
+ * @param sources - Input Observables to race.
+ * @returns Observable that mirrors the first source to emit.
  *
  * @example
  * ```ts
