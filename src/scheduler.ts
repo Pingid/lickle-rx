@@ -33,7 +33,7 @@ export interface Scheduler {
  * Used for time-based operations like delay, debounceTime, etc.
  */
 export const asyncScheduler: Scheduler = {
-  now: Date.now,
+  now: () => Date.now(),
   schedule: (work, delay = 0) => {
     const id = setTimeout(work, delay)
     return () => clearTimeout(id)
@@ -45,7 +45,7 @@ export const asyncScheduler: Scheduler = {
  * Essential for UI animations and smooth visual updates.
  */
 export const animationFrameScheduler: Scheduler = {
-  now: Date.now,
+  now: () => Date.now(),
   schedule: (work, delay = 0) => {
     // If delay is 0, use rAF directly
     if (delay === 0) {
@@ -68,7 +68,7 @@ export const animationFrameScheduler: Scheduler = {
  * Falls back to `setTimeout` when a delay is specified.
  */
 export const asapScheduler: Scheduler = {
-  now: Date.now,
+  now: () => Date.now(),
   schedule: (work, delay = 0) => {
     // If delay > 0, we must fall back to the async scheduler (setTimeout)
     if (delay > 0) {
@@ -95,7 +95,7 @@ export const asapScheduler: Scheduler = {
  * Falls back to `setTimeout` in environments without `requestIdleCallback`.
  */
 export const idleScheduler: Scheduler = {
-  now: Date.now,
+  now: () => Date.now(),
   schedule: (work, delay = 0) => {
     if (delay > 0) {
       const id = setTimeout(() => {
@@ -131,7 +131,7 @@ export const createQueueScheduler = (): Scheduler => {
   let idCounter = 0
 
   return {
-    now: Date.now,
+    now: () => Date.now(),
 
     schedule: (work, delay = 0) => {
       // 1. If there is a delay, we must drop back to the macro-task queue (setTimeout).
