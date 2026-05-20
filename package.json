@@ -51,7 +51,10 @@
     "test": "vitest",
     "esm": "tsc -p ./tsconfig.esm.json",
     "cjs": "tsc -p ./tsconfig.cjs.json > /dev/null 2>&1 || true",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bench": "tsx bench/core/bench.ts",
+    "bench:save": "tsx bench/cmp.ts save",
+    "bench:diff": "tsx bench/cmp.ts diff"
   },
   "dependencies": {
     "symbol-observable": "^4.0.0"
@@ -59,7 +62,9 @@
   "devDependencies": {
     "@lickle/dom": "^0.0.3",
     "jsr": "^0.13.5",
+    "mitata": "^1.0.34",
     "prettier": "^3.7.4",
+    "tsx": "^4.22.3",
     "typescript": "^5.9.3",
     "vitest": "^4.0.15"
   },
