@@ -66,23 +66,35 @@ export const animationFrameScheduler: Scheduler = {
  * Executes after synchronous code finishes but before the browser paints.
  * Faster than `setTimeout` and avoids the 4ms minimum delay clamping.
  * Falls back to `setTimeout` when a delay is specified.
+ *
+ * All zero-delay calls within a tick share a single drain microtask to
+ * minimize Promise allocations under high-frequency scheduling.
  */
+type AsapSlot = { fn: () => void }
+const asapNoop = () => {}
+let asapQueue: AsapSlot[] = []
+let asapScheduled = false
+const asapDrain = () => {
+  asapScheduled = false
+  const q = asapQueue
+  asapQueue = []
+  for (let i = 0; i < q.length; i++) q[i]!.fn()
+}
 export const asapScheduler: Scheduler = {
   now: () => Date.now(),
   schedule: (work, delay = 0) => {
-    // If delay > 0, we must fall back to the async scheduler (setTimeout)
     if (delay > 0) {
       const id = setTimeout(work, delay)
       return () => clearTimeout(id)
     }
-
-    let active = true
-    Promise.resolve().then(() => {
-      if (active) work()
-    })
-
+    const slot: AsapSlot = { fn: work }
+    asapQueue.push(slot)
+    if (!asapScheduled) {
+      asapScheduled = true
+      Promise.resolve().then(asapDrain)
+    }
     return () => {
-      active = false
+      slot.fn = asapNoop
     }
   },
 }

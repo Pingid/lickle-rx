@@ -1,0 +1,39 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "src/combinator.ts",
+    "src/constructor.ts",
+    "src/observable.ts",
+    "src/operator.ts",
+    "src/scheduler.ts",
+    "src/subject.ts",
+    "src/util.ts",
+    "src/browser.ts"
+  ],
+  "out": "docs",
+  "router": "category",
+  "name": "@lickle/rx",
+  "includeVersion": true,
+  "hideGenerator": false,
+  "readme": "README.md",
+  "customCss": "./.typedoc/theme.css",
+  "lightHighlightTheme": "github-light",
+  "darkHighlightTheme": "github-dark",
+  "navigationLinks": {
+    "GitHub": "https://github.com/Pingid/lickle-rx",
+    "npm": "https://www.npmjs.com/package/@lickle/rx"
+  },
+  "sidebarLinks": {
+    "Repository": "https://github.com/Pingid/lickle-rx",
+    "Issues": "https://github.com/Pingid/lickle-rx/issues"
+  },
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": false
+  },
+  "visibilityFilters": {
+    "protected": false,
+    "inherited": false,
+    "external": false
+  }
+}

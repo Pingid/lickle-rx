@@ -15,6 +15,8 @@
 
 import { Observable, Observer } from './observable.js'
 
+const noop = () => {}
+
 /**
  * Creates a Subject that multicasts to multiple subscribers.
  *
@@ -27,29 +29,35 @@ import { Observable, Observer } from './observable.js'
  * ```
  */
 export const subject = <T, E = unknown>(): Subject<T, E> => {
-  const observers = new Set<Observer<T, E>>()
+  let obs: Observer<T, E>[] = []
   let closed = false
-  const subject: Subject<T, E> = (observer: Observer<T, E>) => {
-    if (closed) return () => {}
-    observers.add(observer)
-    return () => observers.delete(observer)
+  const s: Subject<T, E> = (o) => {
+    if (closed) return noop
+    obs = obs.concat(o)
+    return () => {
+      obs = obs.filter((x) => x !== o)
+    }
   }
-  subject.next = (x: T) => {
-    if (!closed) observers.forEach((o) => o.next(x))
+  s.next = (x) => {
+    if (closed) return
+    const arr = obs
+    for (let i = 0; i < arr.length; i++) arr[i]!.next(x)
   }
-  subject.error = (e: E) => {
+  s.error = (e) => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.error(e))
-    observers.clear()
+    const arr = obs
+    obs = []
+    for (let i = 0; i < arr.length; i++) arr[i]!.error(e)
   }
-  subject.complete = () => {
+  s.complete = () => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.complete())
-    observers.clear()
+    const arr = obs
+    obs = []
+    for (let i = 0; i < arr.length; i++) arr[i]!.complete()
   }
-  return subject
+  return s
 }
 
 /**
@@ -84,39 +92,44 @@ export type Subject<T, E = unknown> = Observable<T, E> & {
  * ```
  */
 export const replaySubject = <T, E = unknown>(bufferSize = Infinity): ReplaySubject<T, E> => {
-  const observers = new Set<Observer<T, E>>()
-  const buffer: T[] = []
+  let obs: Observer<T, E>[] = []
+  const buf: T[] = []
   let closed = false
-  const subject: ReplaySubject<T, E> = (observer: Observer<T, E>) => {
-    buffer.forEach((x) => observer.next(x))
+  const s: ReplaySubject<T, E> = (o) => {
+    for (let i = 0; i < buf.length; i++) o.next(buf[i]!)
     if (closed) {
-      observer.complete()
-      return () => {}
+      o.complete()
+      return noop
     }
-    observers.add(observer)
-    return () => observers.delete(observer)
+    obs = obs.concat(o)
+    return () => {
+      obs = obs.filter((x) => x !== o)
+    }
   }
-  subject.next = (x: T) => {
+  s.next = (x) => {
     if (closed) return
-    buffer.push(x)
-    if (buffer.length > bufferSize) buffer.shift()
-    observers.forEach((o) => o.next(x))
+    buf.push(x)
+    if (buf.length > bufferSize) buf.shift()
+    const arr = obs
+    for (let i = 0; i < arr.length; i++) arr[i]!.next(x)
   }
-  subject.error = (e: E) => {
-    if (closed) return
-    closed = true
-    observers.forEach((o) => o.error(e))
-    observers.clear()
-  }
-  subject.complete = () => {
+  s.error = (e) => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.complete())
-    observers.clear()
+    const arr = obs
+    obs = []
+    for (let i = 0; i < arr.length; i++) arr[i]!.error(e)
   }
-  subject.bufferSize = bufferSize
-  subject.getBuffer = () => [...buffer]
-  return subject
+  s.complete = () => {
+    if (closed) return
+    closed = true
+    const arr = obs
+    obs = []
+    for (let i = 0; i < arr.length; i++) arr[i]!.complete()
+  }
+  s.bufferSize = bufferSize
+  s.getBuffer = () => buf.slice()
+  return s
 }
 
 /**
@@ -147,37 +160,42 @@ export type ReplaySubject<T, E = unknown> = Subject<T, E> & {
  * ```
  */
 export const behaviorSubject = <T, E = unknown>(initialValue: T): BehaviorSubject<T, E> => {
-  const observers = new Set<Observer<T, E>>()
-  let current = initialValue
+  let obs: Observer<T, E>[] = []
+  let cur = initialValue
   let closed = false
-  const subject: BehaviorSubject<T, E> = (observer: Observer<T, E>) => {
-    observer.next(current)
+  const s: BehaviorSubject<T, E> = (o) => {
+    o.next(cur)
     if (closed) {
-      observer.complete()
-      return () => {}
+      o.complete()
+      return noop
     }
-    observers.add(observer)
-    return () => observers.delete(observer)
+    obs = obs.concat(o)
+    return () => {
+      obs = obs.filter((x) => x !== o)
+    }
   }
-  subject.next = (x: T) => {
+  s.next = (x) => {
     if (closed) return
-    current = x
-    observers.forEach((o) => o.next(x))
+    cur = x
+    const arr = obs
+    for (let i = 0; i < arr.length; i++) arr[i]!.next(x)
   }
-  subject.error = (e: E) => {
-    if (closed) return
-    closed = true
-    observers.forEach((o) => o.error(e))
-    observers.clear()
-  }
-  subject.complete = () => {
+  s.error = (e) => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.complete())
-    observers.clear()
+    const arr = obs
+    obs = []
+    for (let i = 0; i < arr.length; i++) arr[i]!.error(e)
   }
-  subject.getValue = () => current
-  return subject
+  s.complete = () => {
+    if (closed) return
+    closed = true
+    const arr = obs
+    obs = []
+    for (let i = 0; i < arr.length; i++) arr[i]!.complete()
+  }
+  s.getValue = () => cur
+  return s
 }
 
 /**
@@ -221,45 +239,50 @@ export const replayByKeySubject = <T, K extends string | number | symbol = strin
   options?: { maxKeys?: number },
 ): ReplayByKeySubject<T, K, E> => {
   const maxKeys = options?.maxKeys ?? Infinity
-  const observers = new Set<Observer<T, E>>()
+  let obs: Observer<T, E>[] = []
   const cache = new Map<K, T>()
   let closed = false
-  const subject: ReplayByKeySubject<T, K, E> = (observer: Observer<T, E>) => {
-    cache.forEach((x) => observer.next(x))
+  const s: ReplayByKeySubject<T, K, E> = (o) => {
+    for (const v of cache.values()) o.next(v)
     if (closed) {
-      observer.complete()
-      return () => {}
+      o.complete()
+      return noop
     }
-    observers.add(observer)
-    return () => observers.delete(observer)
+    obs = obs.concat(o)
+    return () => {
+      obs = obs.filter((x) => x !== o)
+    }
   }
-  subject.next = (x: T) => {
+  s.next = (x) => {
     if (closed) return
-    const key = getKey(x)
-    if (cache.has(key)) cache.delete(key)
-    cache.set(key, x)
+    const k = getKey(x)
+    if (cache.has(k)) cache.delete(k)
+    cache.set(k, x)
     while (cache.size > maxKeys) {
       const oldest = cache.keys().next().value
-      if (oldest) cache.delete(oldest)
+      if (oldest !== undefined) cache.delete(oldest)
     }
-    observers.forEach((o) => o.next(x))
+    const arr = obs
+    for (let i = 0; i < arr.length; i++) arr[i]!.next(x)
   }
-  subject.error = (e: E) => {
+  s.error = (e) => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.error(e))
-    observers.clear()
+    const arr = obs
+    obs = []
+    for (let i = 0; i < arr.length; i++) arr[i]!.error(e)
   }
-  subject.complete = () => {
+  s.complete = () => {
     if (closed) return
     closed = true
-    observers.forEach((o) => o.complete())
-    observers.clear()
+    const arr = obs
+    obs = []
+    for (let i = 0; i < arr.length; i++) arr[i]!.complete()
   }
-  subject.get = (key: K) => cache.get(key)
-  subject.getCache = () => new Map(cache)
-  subject.maxKeys = maxKeys
-  return subject
+  s.get = (k) => cache.get(k)
+  s.getCache = () => new Map(cache)
+  s.maxKeys = maxKeys
+  return s
 }
 
 /**

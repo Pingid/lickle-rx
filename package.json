@@ -1,6 +1,6 @@
 {
   "name": "@lickle/rx",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "A minimal reactive programming library with Observables, Subjects, and composable operators",
   "author": "Dan Beaven <dm.beaven@gmail.com>",
   "repository": {
@@ -54,19 +54,21 @@
     "typecheck": "tsc --noEmit",
     "bench": "tsx bench/core/bench.ts",
     "bench:save": "tsx bench/cmp.ts save",
-    "bench:diff": "tsx bench/cmp.ts diff"
+    "bench:diff": "tsx bench/cmp.ts diff",
+    "docs": "typedoc"
   },
   "dependencies": {
+    "@lickle/dom": "^0.1.0",
     "symbol-observable": "^4.0.0"
   },
   "devDependencies": {
-    "@lickle/dom": "^0.0.3",
-    "jsr": "^0.13.5",
+    "jsr": "^0.14.3",
     "mitata": "^1.0.34",
-    "prettier": "^3.7.4",
+    "prettier": "^3.8.3",
     "tsx": "^4.22.3",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.15"
+    "typedoc": "^0.28.19",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
   },
   "prettier": {
     "semi": false,
