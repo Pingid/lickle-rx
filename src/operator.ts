@@ -18,6 +18,8 @@ import { subject, replaySubject, replayByKeySubject, type Subject } from './subj
 import { asyncScheduler, Scheduler, animationFrameScheduler, createVirtualScheduler } from './scheduler.js'
 import { from } from './constructor.js'
 
+const noop = () => {}
+
 /**
  * Applies a given transform function to each value emitted by the source
  * Observable, and emits the resulting values as an Observable.
@@ -39,13 +41,13 @@ export const map: <A, B>(transform: (a: A) => B) => (source: Observable<A>) => O
     source({
       next: (x) => {
         try {
-          const value = transform(x)
-          observer.next(value)
+          observer.next(transform(x))
         } catch (err) {
           observer.error(err)
         }
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
 
 /**
@@ -67,32 +69,33 @@ export const map: <A, B>(transform: (a: A) => B) => (source: Observable<A>) => O
  */
 export const switchMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (source: Observable<A>) => Observable<B> =
   (transform) => (source) => (observer) => {
-    let innerUnsub: () => void = () => {}
-    let hasActiveInner = false
-    let sourceCompleted = false
+    let innerUnsub: () => void = noop
+    let active = false
+    let done = false
     const tryComplete = () => {
-      if (sourceCompleted && !hasActiveInner) observer.complete()
+      if (done && !active) observer.complete()
+    }
+    const innerComplete = () => {
+      active = false
+      tryComplete()
     }
     const sourceUnsub = source({
       next: (x) => {
         try {
           innerUnsub()
-          hasActiveInner = true
+          active = true
           innerUnsub = from(transform(x))({
             next: observer.next,
-            ...forwardError(observer),
-            complete: () => {
-              hasActiveInner = false
-              tryComplete()
-            },
+            error: observer.error,
+            complete: innerComplete,
           })
         } catch (err) {
           observer.error(err)
         }
       },
-      ...forwardError(observer),
+      error: observer.error,
       complete: () => {
-        sourceCompleted = true
+        done = true
         tryComplete()
       },
     })
@@ -119,42 +122,37 @@ export const switchMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (sour
  */
 export const exhaustMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (source: Observable<A>) => Observable<B> =
   (transform) => (source) => (observer) => {
-    let innerUnsub: () => void = () => {}
-    let hasActiveInner = false
-    let sourceCompleted = false
-
+    let innerUnsub: () => void = noop
+    let active = false
+    let done = false
     const tryComplete = () => {
-      if (sourceCompleted && !hasActiveInner) observer.complete()
+      if (done && !active) observer.complete()
     }
-
+    const innerComplete = () => {
+      active = false
+      tryComplete()
+    }
     const sourceUnsub = source({
       next: (x) => {
-        if (hasActiveInner) return
-        hasActiveInner = true
+        if (active) return
+        active = true
         try {
           innerUnsub = from(transform(x))({
             next: observer.next,
-            ...forwardError(observer),
-            complete: () => {
-              hasActiveInner = false
-              tryComplete()
-            },
+            error: observer.error,
+            complete: innerComplete,
           })
         } catch (err) {
           observer.error(err)
         }
       },
-      ...forwardError(observer),
+      error: observer.error,
       complete: () => {
-        sourceCompleted = true
+        done = true
         tryComplete()
       },
     })
-
-    return () => {
-      innerUnsub()
-      sourceUnsub()
-    }
+    return () => (innerUnsub(), sourceUnsub())
   }
 
 /**
@@ -176,40 +174,40 @@ export const exhaustMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (sou
  */
 export const mergeMap: <A, B>(transform: (a: A) => ObservableInput<B>) => (source: Observable<A>) => Observable<B> =
   (transform) => (source) => (observer) => {
-    const innerSubs = new Set<() => void>()
-    let activeCount = 0
-    let sourceCompleted = false
+    const subs = new Set<() => void>()
+    let active = 0
+    let done = false
     const tryComplete = () => {
-      if (sourceCompleted && activeCount === 0) observer.complete()
+      if (done && active === 0) observer.complete()
     }
     const sourceSub = source({
       next: (x) => {
         try {
-          activeCount++
-          let innerUnsub: () => void
-          innerUnsub = from(transform(x))({
+          active++
+          let unsub: () => void
+          unsub = from(transform(x))({
             next: observer.next,
-            ...forwardError(observer),
+            error: observer.error,
             complete: () => {
-              activeCount--
-              innerSubs.delete(innerUnsub)
+              active--
+              subs.delete(unsub)
               tryComplete()
             },
           })
-          innerSubs.add(innerUnsub)
+          subs.add(unsub)
         } catch (err) {
           observer.error(err)
         }
       },
-      ...forwardError(observer),
+      error: observer.error,
       complete: () => {
-        sourceCompleted = true
+        done = true
         tryComplete()
       },
     })
     return () => {
       sourceSub()
-      innerSubs.forEach((fn) => fn())
+      for (const fn of subs) fn()
     }
   }
 
@@ -235,27 +233,30 @@ export const concatMap =
   <A, B>(transform: (a: A) => ObservableInput<B>) =>
   (source: Observable<A>): Observable<B> =>
   (observer) => {
-    const queue: A[] = []
-    let currentUnsub: (() => void) | null = null
+    let queue: A[] = []
+    let head = 0
+    let curUnsub: (() => void) | null = null
     let active = false
-    let sourceCompleted = false
+    let done = false
     const tryComplete = () => {
-      if (sourceCompleted && !active && queue.length === 0) observer.complete()
+      if (done && !active && head >= queue.length) observer.complete()
     }
-    const processNext = () => {
-      if (active || queue.length === 0) {
-        tryComplete()
-        return
-      }
+    const next = () => {
+      if (active || head >= queue.length) return tryComplete()
       active = true
-      const value = queue.shift()!
+      const v = queue[head]!
+      ;(queue as any)[head++] = undefined
+      if (head > 32 && head * 2 >= queue.length) {
+        queue = queue.slice(head)
+        head = 0
+      }
       try {
-        currentUnsub = from(transform(value))({
+        curUnsub = from(transform(v))({
           next: observer.next,
-          ...forwardError(observer),
+          error: observer.error,
           complete: () => {
             active = false
-            processNext()
+            next()
           },
         })
       } catch (err) {
@@ -266,17 +267,17 @@ export const concatMap =
     const sourceSub = source({
       next: (x) => {
         queue.push(x)
-        processNext()
+        next()
       },
-      ...forwardError(observer),
+      error: observer.error,
       complete: () => {
-        sourceCompleted = true
+        done = true
         tryComplete()
       },
     })
     return () => {
       sourceSub()
-      if (currentUnsub) currentUnsub()
+      if (curUnsub) curUnsub()
     }
   }
 
@@ -306,16 +307,17 @@ export const filter: {
 } = (<A, B extends A>(pred?: ((a: A) => a is B) | ((a: A) => boolean)) =>
   (oa: Observable<A>): Observable<B> =>
   (observer) => {
-    const predicate = pred ?? (() => false)
+    const p = pred ?? (() => false)
     return oa({
       next: (x) => {
         try {
-          if (predicate(x)) observer.next(x as B)
+          if (p(x)) observer.next(x as B)
         } catch (err) {
           observer.error(err)
         }
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
   }) as any
 
@@ -339,27 +341,19 @@ export const catchError =
   (source: Observable<A>): Observable<A | B> =>
   (observer) => {
     let innerUnsub: (() => void) | null = null
-    let sourceUnsub: (() => void) | null = null
-
-    sourceUnsub = source({
+    const sourceUnsub = source({
       next: observer.next,
       complete: observer.complete,
       error: (err) => {
         try {
-          const result$ = from(selector(err))
-          innerUnsub = result$({
-            next: observer.next,
-            error: observer.error,
-            complete: observer.complete,
-          })
+          innerUnsub = from(selector(err))(observer as any)
         } catch (e) {
           observer.error(e)
         }
       },
     })
-
     return () => {
-      if (sourceUnsub) sourceUnsub()
+      sourceUnsub()
       if (innerUnsub) innerUnsub()
     }
   }
@@ -418,7 +412,8 @@ export const scan: <A, B>(initial: A, accumulator: (a: A, b: B) => A) => (source
           observer.error(err)
         }
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
   }
 
@@ -456,11 +451,11 @@ export const tap =
   <A>(observerOrNext: Partial<Observer<A>> | ((value: A) => void)) =>
   (source: Observable<A>): Observable<A> =>
   (observer) => {
-    const tapObserver = typeof observerOrNext === 'function' ? { next: observerOrNext } : observerOrNext
+    const t = typeof observerOrNext === 'function' ? { next: observerOrNext } : observerOrNext
     return source({
       next: (x) => {
         try {
-          tapObserver.next?.(x)
+          t.next?.(x)
           observer.next(x)
         } catch (err) {
           observer.error(err)
@@ -468,7 +463,7 @@ export const tap =
       },
       error: (e) => {
         try {
-          tapObserver.error?.(e)
+          t.error?.(e)
         } catch (e) {
           console.error('Uncaught Error in tap error handler:', e)
         }
@@ -476,7 +471,7 @@ export const tap =
       },
       complete: () => {
         try {
-          tapObserver.complete?.()
+          t.complete?.()
         } catch (e) {
           console.error('Uncaught Error in tap complete handler:', e)
         }
@@ -515,7 +510,8 @@ export const effect =
           observer.error(err)
         }
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
 
 /**
@@ -536,39 +532,29 @@ export const take =
   (source: Observable<A>): Observable<A> =>
   (observer) => {
     let emitted = 0
-    let sourceUnsub: Unsubscribe | undefined
     let completed = false
-
-    const complete = () => {
+    let sUnsub: Unsubscribe | undefined
+    const finish = () => {
       completed = true
       observer.complete()
-      if (sourceUnsub) sourceUnsub()
+      if (sUnsub) sUnsub()
     }
-
-    sourceUnsub = source({
+    sUnsub = source({
       next: (x) => {
-        if (emitted < count) {
-          emitted++
-          observer.next(x)
-          if (emitted >= count) {
-            complete()
-          }
-        }
+        if (emitted >= count) return
+        emitted++
+        observer.next(x)
+        if (emitted >= count) finish()
       },
       error: observer.error,
       complete: () => {
         if (!completed) observer.complete()
       },
     })
-
-    // Handle synchronous completion case
-    if (emitted >= count && !completed) {
-      complete()
-    }
-
+    if (emitted >= count && !completed) finish()
     return () => {
       completed = true
-      if (sourceUnsub) sourceUnsub()
+      if (sUnsub) sUnsub()
     }
   }
 
@@ -589,28 +575,29 @@ export const take =
 export const takeUntil: <A>(notifier: Observable<any>) => (source: Observable<A>) => Observable<A> =
   (notifier) => (source) => (observer) => {
     let completed = false
-    let notifierUnsub: () => void = () => {}
-    let sourceUnsub: () => void = () => {}
-    sourceUnsub = source({
+    let nUnsub: () => void = noop
+    let sUnsub: () => void = noop
+    sUnsub = source({
       next: (x) => {
         if (!completed) observer.next(x)
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
-    notifierUnsub = notifier({
+    nUnsub = notifier({
       next: () => {
         completed = true
-        sourceUnsub()
-        notifierUnsub()
+        sUnsub()
+        nUnsub()
         observer.complete()
       },
       error: observer.error,
-      complete: () => {},
+      complete: noop,
     })
     return () => {
       completed = true
-      sourceUnsub()
-      notifierUnsub()
+      sUnsub()
+      nUnsub()
     }
   }
 
@@ -630,17 +617,17 @@ export const takeUntil: <A>(notifier: Observable<any>) => (source: Observable<A>
 export const takeWhile: <A>(
   predicate: (value: A, index: number) => boolean,
 ) => (source: Observable<A>) => Observable<A> = (predicate) => (source) => (observer) => {
-  let index = 0
+  let i = 0
   let taking = true
-  let unsubscribe: () => void = () => {}
-  unsubscribe = source({
+  let unsub: () => void = noop
+  unsub = source({
     next: (x) => {
       try {
-        if (taking && predicate(x, index++)) {
+        if (taking && predicate(x, i++)) {
           observer.next(x)
         } else {
           taking = false
-          unsubscribe()
+          unsub()
           observer.complete()
         }
       } catch (err) {
@@ -648,9 +635,9 @@ export const takeWhile: <A>(
       }
     },
     error: observer.error,
-    complete: () => {},
+    complete: observer.complete,
   })
-  return unsubscribe
+  return unsub
 }
 
 /**
@@ -670,12 +657,12 @@ export const startWith: <A, B>(...values: A[]) => (source: Observable<B>) => Obs
   (...values) =>
   (source) =>
   (observer) => {
-    for (const value of values) {
+    for (let i = 0; i < values.length; i++) {
       try {
-        observer.next(value)
+        observer.next(values[i]!)
       } catch (err) {
         observer.error(err)
-        return () => {}
+        return noop
       }
     }
     return source(observer)
@@ -698,21 +685,22 @@ export const distinctUntilChanged =
   <A>(compareFn: (prev: A, curr: A) => boolean = (a, b) => a === b) =>
   (source: Observable<A>): Observable<A> =>
   (observer) => {
-    let hasPrevious = false
-    let previous: A
+    let has = false
+    let prev: A
     return source({
       next: (x) => {
         try {
-          if (!hasPrevious || !compareFn(previous, x)) {
-            hasPrevious = true
-            previous = x
+          if (!has || !compareFn(prev, x)) {
+            has = true
+            prev = x
             observer.next(x)
           }
         } catch (err) {
           observer.error(err)
         }
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
   }
 
@@ -733,17 +721,16 @@ export const pairwise =
   <A>() =>
   (source: Observable<A>): Observable<[A, A]> =>
   (observer) => {
-    let hasPrevious = false
-    let previous: A
+    let has = false
+    let prev: A
     return source({
       next: (x) => {
-        if (hasPrevious) {
-          observer.next([previous, x])
-        }
-        hasPrevious = true
-        previous = x
+        if (has) observer.next([prev, x])
+        has = true
+        prev = x
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
   }
 
@@ -764,13 +751,14 @@ export const withPrevious =
   <A, B = null>(initial: B) =>
   (source: Observable<A>): Observable<[A | B, A]> =>
   (observer) => {
-    let previous: B | A = initial ?? (null as B)
+    let prev: B | A = initial ?? (null as B)
     return source({
       next: (x) => {
-        observer.next([previous, x])
-        previous = x
+        observer.next([prev, x])
+        prev = x
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
   }
 
@@ -793,29 +781,37 @@ export const withLatestFrom =
   <A, T extends Observable<any>[]>(...others: T) =>
   (source: Observable<A>): Observable<[A, ...{ [K in keyof T]: T[K] extends Observable<infer U> ? U : never }]> =>
   (observer) => {
-    const values: any[] = new Array(others.length)
-    const hasValue: boolean[] = new Array(others.length).fill(false)
-    let ready = false
-    const otherUnsubs = others.map((other, i) =>
-      other({
+    const n = others.length
+    const values: any[] = new Array(n)
+    const has: boolean[] = new Array(n).fill(false)
+    let pending = n
+    const otherUnsubs = others.map((o, i) =>
+      o({
         next: (x) => {
           values[i] = x
-          hasValue[i] = true
-          if (!ready) ready = hasValue.every(Boolean)
+          if (!has[i]) {
+            has[i] = true
+            pending--
+          }
         },
         error: observer.error,
-        complete: () => {},
+        complete: noop,
       }),
     )
     const sourceUnsub = source({
       next: (x) => {
-        if (ready) observer.next([x, ...values] as any)
+        if (pending !== 0) return
+        const out = new Array(n + 1)
+        out[0] = x
+        for (let i = 0; i < n; i++) out[i + 1] = values[i]
+        observer.next(out as any)
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
     return () => {
       sourceUnsub()
-      otherUnsubs.forEach((fn) => fn())
+      for (let i = 0; i < otherUnsubs.length; i++) otherUnsubs[i]!()
     }
   }
 
@@ -853,30 +849,26 @@ export const debounceTime =
   <A>(source: Observable<A>): Observable<A> =>
   (observer) => {
     let taskUnsub: Unsubscribe | undefined
-    let lastValue: A | undefined
-    let hasValue = false
-
+    let last: A | undefined
+    let has = false
+    const fire = () => {
+      has = false
+      observer.next(last!)
+    }
     const sourceUnsub = source({
       next: (x) => {
-        lastValue = x
-        hasValue = true
-        // Cancel previous scheduled emission
+        last = x
+        has = true
         if (taskUnsub) taskUnsub()
-
-        // Schedule new emission
-        taskUnsub = scheduler.schedule(() => {
-          hasValue = false
-          observer.next(x)
-        }, duration)
+        taskUnsub = scheduler.schedule(fire, duration)
       },
       error: observer.error,
       complete: () => {
         if (taskUnsub) taskUnsub()
-        if (hasValue) observer.next(lastValue!)
+        if (has) observer.next(last!)
         observer.complete()
       },
     })
-
     return () => {
       sourceUnsub()
       if (taskUnsub) taskUnsub()
@@ -900,16 +892,17 @@ export const throttleTime =
   (duration: number) =>
   <A>(source: Observable<A>): Observable<A> =>
   (observer) => {
-    let lastEmit = 0
+    let last = 0
     return source({
       next: (x) => {
         const now = Date.now()
-        if (now - lastEmit >= duration) {
-          lastEmit = now
+        if (now - last >= duration) {
+          last = now
           observer.next(x)
         }
       },
-      ...forward(observer),
+      error: observer.error,
+      complete: observer.complete,
     })
   }
 
@@ -930,32 +923,31 @@ export const delay =
   (duration: number) =>
   <A>(source: Observable<A>): Observable<A> =>
   (observer) => {
-    const timeoutIds: ReturnType<typeof setTimeout>[] = []
-    let pending = 0
-    let sourceCompleted = false
+    const ids = new Set<ReturnType<typeof setTimeout>>()
+    let done = false
     const tryComplete = () => {
-      if (sourceCompleted && pending === 0) observer.complete()
+      if (done && ids.size === 0) observer.complete()
     }
     const sourceUnsub = source({
       next: (x) => {
-        pending++
-        timeoutIds.push(
-          setTimeout(() => {
-            pending--
-            observer.next(x)
-            tryComplete()
-          }, duration),
-        )
+        let id: ReturnType<typeof setTimeout>
+        id = setTimeout(() => {
+          ids.delete(id)
+          observer.next(x)
+          tryComplete()
+        }, duration)
+        ids.add(id)
       },
-      ...forwardError(observer),
+      error: observer.error,
       complete: () => {
-        sourceCompleted = true
+        done = true
         tryComplete()
       },
     })
     return () => {
       sourceUnsub()
-      timeoutIds.forEach((id) => clearTimeout(id))
+      for (const id of ids) clearTimeout(id)
+      ids.clear()
     }
   }
 
@@ -976,25 +968,25 @@ export const bufferTime =
   (duration: number) =>
   <A>(source: Observable<A>): Observable<A[]> =>
   (observer) => {
-    let buffer: A[] = []
-    const intervalId = setInterval(() => {
-      if (buffer.length > 0) {
-        observer.next(buffer)
-        buffer = []
-      }
+    let buf: A[] = []
+    const id = setInterval(() => {
+      if (buf.length === 0) return
+      const out = buf
+      buf = []
+      observer.next(out)
     }, duration)
     const sourceUnsub = source({
-      next: (x) => buffer.push(x),
-      ...forwardError(observer),
+      next: (x) => buf.push(x),
+      error: observer.error,
       complete: () => {
-        clearInterval(intervalId)
-        if (buffer.length > 0) observer.next(buffer)
+        clearInterval(id)
+        if (buf.length > 0) observer.next(buf)
         observer.complete()
       },
     })
     return () => {
       sourceUnsub()
-      clearInterval(intervalId)
+      clearInterval(id)
     }
   }
 
@@ -1015,33 +1007,27 @@ export const share =
   <A>() =>
   (source: Observable<A>): Observable<A> => {
     let subj: Subject<A> | null = null
-    let refCount = 0
+    let refs = 0
     let sourceUnsub: (() => void) | null = null
     const reset = () => {
       subj = null
-      refCount = 0
+      refs = 0
       sourceUnsub = null
     }
     return (observer) => {
       if (!subj) subj = subject<A>()
-      const subjectUnsub = subj(observer)
-      if (refCount++ === 0) {
-        const currentSubj = subj
+      const s = subj
+      const sub = s(observer)
+      if (refs++ === 0) {
         sourceUnsub = source({
-          next: (x) => currentSubj.next(x),
-          error: (e) => {
-            currentSubj.error(e)
-            reset()
-          },
-          complete: () => {
-            currentSubj.complete()
-            reset()
-          },
+          next: s.next,
+          error: (e) => (s.error(e), reset()),
+          complete: () => (s.complete(), reset()),
         })
       }
       return () => {
-        subjectUnsub()
-        if (--refCount === 0 && sourceUnsub) {
+        sub()
+        if (--refs === 0 && sourceUnsub) {
           sourceUnsub()
           sourceUnsub = null
         }
@@ -1065,21 +1051,15 @@ export const share =
 export const shareReplay =
   <A>(bufferSize = 1) =>
   (source: Observable<A>): Observable<A> => {
-    const subject = replaySubject<A>(bufferSize)
-    let refCount = 0
+    const subj = replaySubject<A>(bufferSize)
+    let refs = 0
     let sourceUnsub: (() => void) | null = null
     return (observer) => {
-      const subjectUnsub = subject(observer)
-      if (refCount++ === 0) {
-        sourceUnsub = source({
-          next: (x) => subject.next(x),
-          error: (e) => subject.error(e),
-          complete: () => subject.complete(),
-        })
-      }
+      const sub = subj(observer)
+      if (refs++ === 0) sourceUnsub = source(subj)
       return () => {
-        subjectUnsub()
-        if (--refCount === 0 && sourceUnsub) {
+        sub()
+        if (--refs === 0 && sourceUnsub) {
           sourceUnsub()
           sourceUnsub = null
         }
@@ -1123,21 +1103,15 @@ export const shareReplayByKey =
     options?: { maxKeys?: number },
   ) =>
   (source: Observable<A>): Observable<A> => {
-    const subject = replayByKeySubject<A, K>(getKey, options)
-    let refCount = 0
+    const subj = replayByKeySubject<A, K>(getKey, options)
+    let refs = 0
     let sourceUnsub: (() => void) | null = null
     return (observer) => {
-      const subjectUnsub = subject(observer)
-      if (refCount++ === 0) {
-        sourceUnsub = source({
-          next: (x) => subject.next(x),
-          error: (e) => subject.error(e),
-          complete: () => subject.complete(),
-        })
-      }
+      const sub = subj(observer)
+      if (refs++ === 0) sourceUnsub = source(subj)
       return () => {
-        subjectUnsub()
-        if (--refCount === 0 && sourceUnsub) {
+        sub()
+        if (--refs === 0 && sourceUnsub) {
           sourceUnsub()
           sourceUnsub = null
         }
@@ -1190,35 +1164,55 @@ export const observeOn =
   (source: Observable<A>): Observable<A> =>
   (observer) => {
     let closed = false
-    let sourceUnsub: Unsubscribe | undefined
-
-    sourceUnsub = source({
+    const queue: A[] = []
+    let errVal: unknown
+    let hasErr = false
+    let hasDone = false
+    let scheduled = false
+    let drainUnsub: Unsubscribe | undefined
+    const drain = () => {
+      scheduled = false
+      if (closed) return
+      for (let i = 0; i < queue.length && !closed; i++) observer.next(queue[i]!)
+      queue.length = 0
+      if (closed) return
+      if (hasErr) {
+        hasErr = false
+        observer.error(errVal as any)
+        return
+      }
+      if (hasDone) {
+        hasDone = false
+        observer.complete()
+      }
+    }
+    const ensure = () => {
+      if (scheduled || closed) return
+      scheduled = true
+      drainUnsub = scheduler.schedule(drain, delay)
+    }
+    const sourceUnsub = source({
       next: (x) => {
         if (closed) return
-        scheduler.schedule(() => {
-          if (!closed) observer.next(x)
-        }, delay)
+        queue.push(x)
+        ensure()
       },
       error: (e) => {
         if (closed) return
-        scheduler.schedule(() => {
-          if (!closed) observer.error(e)
-        }, delay)
+        hasErr = true
+        errVal = e
+        ensure()
       },
       complete: () => {
         if (closed) return
-        scheduler.schedule(() => {
-          if (!closed) observer.complete()
-        }, delay)
+        hasDone = true
+        ensure()
       },
     })
-
     return () => {
       closed = true
-      if (sourceUnsub) sourceUnsub()
+      if (drainUnsub) drainUnsub()
+      sourceUnsub()
     }
   }
 
-// ---------------- Utility Functions ----------------
-const forwardError = <E>(o: Observer<any, E>): Pick<Observer<any, E>, 'error'> => ({ error: o.error })
-const forward = <A, E>(o: Observer<A, E>) => ({ error: o.error, complete: o.complete })

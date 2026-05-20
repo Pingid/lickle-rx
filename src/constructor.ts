@@ -17,6 +17,8 @@
 import { Observable, Observer, Unsubscribe, ObservableInput } from './observable.js'
 import { asyncScheduler, Scheduler, animationFrameScheduler, createVirtualScheduler } from './scheduler.js'
 
+const noop = () => {}
+
 /**
  * Converts the arguments to an observable sequence.
  *
@@ -33,7 +35,7 @@ export const of: <T extends any[]>(...args: T) => Observable<T[number]> =
   (...args: any[]) =>
   (observer: Observer<any>) => {
     let subbed = true
-    args.forEach((x) => subbed && observer.next(x))
+    for (let i = 0; i < args.length && subbed; i++) observer.next(args[i])
     if (subbed) observer.complete()
     return () => (subbed = false)
   }
@@ -136,7 +138,7 @@ export const from = <T, E = unknown>(input: ObservableInput<T, E>): Observable<T
       } catch (err) {
         observer.error(err as E)
       }
-      return () => {}
+      return noop
     }
   }
   if (input && typeof (input as AsyncIterable<T>)[Symbol.asyncIterator] === 'function') {
@@ -257,7 +259,7 @@ export const timer = (delay: number, period?: number, scheduler: Scheduler = asy
  * ```
  */
 export const never = <T = never>(): Observable<T> => {
-  return () => () => {}
+  return () => noop
 }
 
 /**
@@ -274,7 +276,7 @@ export const never = <T = never>(): Observable<T> => {
 export const empty = <T = never>(): Observable<T> => {
   return (observer) => {
     observer.complete()
-    return () => {}
+    return noop
   }
 }
 

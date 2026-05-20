@@ -15,7 +15,8 @@
  */
 
 import { Observable, ObservableValue } from './observable.js'
-import { pipe } from './util.js'
+
+const noop = () => {}
 
 /**
  * Creates an output Observable which concurrently emits all values from every
@@ -34,11 +35,12 @@ import { pipe } from './util.js'
  */
 export const merge: <A extends Observable<any>[]>(...sources: A) => Observable<ObservableValue<A[number]>> =
   (...sources) =>
-  (observer) =>
-    pipe(
-      sources.map((source) => source({ next: observer.next, error: observer.error, complete: () => {} })),
-      (unsubs) => () => void unsubs.forEach((fn) => fn()),
-    )
+  (observer) => {
+    const unsubs = sources.map((s) => s({ next: observer.next, error: observer.error, complete: noop }))
+    return () => {
+      for (let i = 0; i < unsubs.length; i++) unsubs[i]!()
+    }
+  }
 
 /**
  * Combines multiple Observables to create an Observable whose values are
@@ -62,22 +64,27 @@ export const combineLatest = <T extends Observable<any>[]>(
   ...sources: T
 ): Observable<{ [K in keyof T]: ObservableValue<T[K]> }> => {
   return (observer) => {
-    const values: any[] = new Array(sources.length)
-    const hasValue: boolean[] = new Array(sources.length).fill(false)
-    let ready = false
+    const n = sources.length
+    const values: any[] = new Array(n)
+    const has: boolean[] = new Array(n).fill(false)
+    let pending = n
     const unsubs = sources.map((source, i) =>
       source({
         next: (x) => {
           values[i] = x
-          hasValue[i] = true
-          if (!ready) ready = hasValue.every(Boolean)
-          if (ready) observer.next(values.slice() as any)
+          if (!has[i]) {
+            has[i] = true
+            pending--
+          }
+          if (pending === 0) observer.next(values.slice() as any)
         },
         error: observer.error,
-        complete: () => {},
+        complete: noop,
       }),
     )
-    return () => unsubs.forEach((fn) => fn())
+    return () => {
+      for (let i = 0; i < unsubs.length; i++) unsubs[i]!()
+    }
   }
 }
 
@@ -123,51 +130,55 @@ export const zip: {
   const sources = hasOptions ? args.slice(1) : args
 
   return (observer) => {
-    const buffers: any[][] = sources.map(() => [])
-    const completed: boolean[] = sources.map(() => false)
-    const unsubs: (() => void)[] = []
+    const n = sources.length
+    const buffers: any[][] = new Array(n)
+    const completed: boolean[] = new Array(n).fill(false)
+    const unsubs: (() => void)[] = new Array(n)
+    for (let i = 0; i < n; i++) buffers[i] = []
     let hasError = false
-
-    const cleanup = () => unsubs.forEach((fn) => fn?.())
-
+    const cleanup = () => {
+      for (let i = 0; i < n; i++) unsubs[i]?.()
+    }
     const tryEmit = () => {
-      while (buffers.every((b) => b.length > 0)) {
-        observer.next(buffers.map((b) => b.shift()))
+      outer: while (true) {
+        for (let i = 0; i < n; i++) if (buffers[i]!.length === 0) break outer
+        const out = new Array(n)
+        for (let i = 0; i < n; i++) out[i] = buffers[i]!.shift()
+        observer.next(out)
       }
-      // Complete if any source is done and its buffer is empty
-      if (completed.some((done, i) => done && buffers[i]!.length === 0)) {
-        cleanup()
-        observer.complete()
+      for (let i = 0; i < n; i++) {
+        if (completed[i] && buffers[i]!.length === 0) {
+          cleanup()
+          observer.complete()
+          return
+        }
       }
     }
-
-    sources.forEach((source: Observable<any>, i: number) => {
-      unsubs.push(
-        source({
-          next: (x) => {
-            if (hasError) return
-            if (buffers[i]!.length >= limit) {
-              hasError = true
-              cleanup()
-              observer.error(new Error(`zip buffer overflow: source ${i} exceeded ${limit} buffered values`))
-              return
-            }
-            buffers[i]!.push(x)
-            tryEmit()
-          },
-          error: (e) => {
+    for (let i = 0; i < n; i++) {
+      const idx = i
+      unsubs[i] = (sources[i] as Observable<any>)({
+        next: (x) => {
+          if (hasError) return
+          if (buffers[idx]!.length >= limit) {
             hasError = true
             cleanup()
-            observer.error(e)
-          },
-          complete: () => {
-            completed[i] = true
-            tryEmit()
-          },
-        }),
-      )
-    })
-
+            observer.error(new Error(`zip buffer overflow: source ${idx} exceeded ${limit} buffered values`))
+            return
+          }
+          buffers[idx]!.push(x)
+          tryEmit()
+        },
+        error: (e) => {
+          hasError = true
+          cleanup()
+          observer.error(e)
+        },
+        complete: () => {
+          completed[idx] = true
+          tryEmit()
+        },
+      })
+    }
     return cleanup
   }
 }
@@ -192,24 +203,21 @@ export const zip: {
  */
 export const concat = <T>(...sources: Observable<T>[]): Observable<T> => {
   return (observer) => {
-    let currentIndex = 0
-    let currentUnsub: () => void = () => {}
-    const subscribeNext = () => {
-      if (currentIndex >= sources.length) {
-        observer.complete()
-        return
-      }
-      currentUnsub = sources[currentIndex]!({
+    let i = 0
+    let unsub: () => void = noop
+    const next = () => {
+      if (i >= sources.length) return observer.complete()
+      unsub = sources[i]!({
         next: observer.next,
         error: observer.error,
         complete: () => {
-          currentIndex++
-          subscribeNext()
+          i++
+          next()
         },
       })
     }
-    subscribeNext()
-    return () => currentUnsub()
+    next()
+    return () => unsub()
   }
 }
 
@@ -230,24 +238,27 @@ export const concat = <T>(...sources: Observable<T>[]): Observable<T> => {
  */
 export const race = <T>(...sources: Observable<T>[]): Observable<T> => {
   return (observer) => {
-    let winnerIndex: number | null = null
+    let winner: number | null = null
     const unsubs: (() => void)[] = []
     for (let i = 0; i < sources.length; i++) {
-      if (winnerIndex !== null) break
+      if (winner !== null) break
+      const idx = i
       unsubs.push(
         sources[i]!({
           next: (x) => {
-            if (winnerIndex === null) {
-              winnerIndex = i
-              unsubs.forEach((fn, j) => j !== i && fn())
+            if (winner === null) {
+              winner = idx
+              for (let j = 0; j < unsubs.length; j++) if (j !== idx) unsubs[j]!()
             }
-            if (winnerIndex === i) observer.next(x)
+            if (winner === idx) observer.next(x)
           },
           error: observer.error,
           complete: observer.complete,
         }),
       )
     }
-    return () => unsubs.forEach((fn) => fn())
+    return () => {
+      for (let i = 0; i < unsubs.length; i++) unsubs[i]!()
+    }
   }
 }

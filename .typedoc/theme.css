@@ -1,0 +1,403 @@
+/* @lickle/rx custom typedoc theme — minimal monochrome */
+
+@import url('https://rsms.me/inter/inter.css');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* unlayered: takes priority over typedoc @layer typedoc rules */
+
+/* ---------- palette ---------- */
+:root {
+  --light-color-background: #ffffff;
+  --light-color-background-secondary: #fafafa;
+  --light-color-background-active: #f0f0f0;
+  --light-color-accent: #e8e8e8;
+  --light-color-active-menu-item: #f5f5f5;
+  --light-color-text: #0a0a0a;
+  --light-color-text-aside: #6b6b6b;
+  --light-color-link: #0a0a0a;
+  --light-color-focus-outline: #0a0a0a;
+  --light-color-icon-background: #ffffff;
+  --light-color-icon-text: #0a0a0a;
+
+  --dark-color-background: #0a0a0a;
+  --dark-color-background-secondary: #131313;
+  --dark-color-background-active: #1f1f1f;
+  --dark-color-accent: #1f1f1f;
+  --dark-color-active-menu-item: #1a1a1a;
+  --dark-color-text: #fafafa;
+  --dark-color-text-aside: #a3a3a3;
+  --dark-color-link: #fafafa;
+  --dark-color-focus-outline: #fafafa;
+  --dark-color-icon-background: #0a0a0a;
+  --dark-color-icon-text: #fafafa;
+}
+
+/* monochrome type-kind icons — single accent for keyword, text-color for the rest */
+:root,
+:root[data-theme='light'] {
+  --color-ts-keyword: #6f42c1;
+  --color-ts-project: #0a0a0a;
+  --color-ts-module: #0a0a0a;
+  --color-ts-namespace: #0a0a0a;
+  --color-ts-enum: #0a0a0a;
+  --color-ts-enum-member: #0a0a0a;
+  --color-ts-variable: #0a0a0a;
+  --color-ts-function: #0a0a0a;
+  --color-ts-class: #0a0a0a;
+  --color-ts-interface: #0a0a0a;
+  --color-ts-constructor: #0a0a0a;
+  --color-ts-property: #0a0a0a;
+  --color-ts-method: #0a0a0a;
+  --color-ts-reference: #0a0a0a;
+  --color-ts-call-signature: #0a0a0a;
+  --color-ts-index-signature: #0a0a0a;
+  --color-ts-constructor-signature: #0a0a0a;
+  --color-ts-parameter: #6b6b6b;
+  --color-ts-type-parameter: #6b6b6b;
+  --color-ts-accessor: #0a0a0a;
+  --color-ts-get-signature: #0a0a0a;
+  --color-ts-set-signature: #0a0a0a;
+  --color-ts-type-alias: #0a0a0a;
+}
+
+:root[data-theme='dark'] {
+  --color-ts-keyword: #c4a8ff;
+  --color-ts-project: #fafafa;
+  --color-ts-module: #fafafa;
+  --color-ts-namespace: #fafafa;
+  --color-ts-enum: #fafafa;
+  --color-ts-enum-member: #fafafa;
+  --color-ts-variable: #fafafa;
+  --color-ts-function: #fafafa;
+  --color-ts-class: #fafafa;
+  --color-ts-interface: #fafafa;
+  --color-ts-constructor: #fafafa;
+  --color-ts-property: #fafafa;
+  --color-ts-method: #fafafa;
+  --color-ts-reference: #fafafa;
+  --color-ts-call-signature: #fafafa;
+  --color-ts-index-signature: #fafafa;
+  --color-ts-constructor-signature: #fafafa;
+  --color-ts-parameter: #a3a3a3;
+  --color-ts-type-parameter: #a3a3a3;
+  --color-ts-accessor: #fafafa;
+  --color-ts-get-signature: #fafafa;
+  --color-ts-set-signature: #fafafa;
+  --color-ts-type-alias: #fafafa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-ts-keyword: #c4a8ff;
+    --color-ts-project: #fafafa;
+    --color-ts-module: #fafafa;
+    --color-ts-namespace: #fafafa;
+    --color-ts-enum: #fafafa;
+    --color-ts-enum-member: #fafafa;
+    --color-ts-variable: #fafafa;
+    --color-ts-function: #fafafa;
+    --color-ts-class: #fafafa;
+    --color-ts-interface: #fafafa;
+    --color-ts-constructor: #fafafa;
+    --color-ts-property: #fafafa;
+    --color-ts-method: #fafafa;
+    --color-ts-reference: #fafafa;
+    --color-ts-call-signature: #fafafa;
+    --color-ts-index-signature: #fafafa;
+    --color-ts-constructor-signature: #fafafa;
+    --color-ts-parameter: #a3a3a3;
+    --color-ts-type-parameter: #a3a3a3;
+    --color-ts-accessor: #fafafa;
+    --color-ts-get-signature: #fafafa;
+    --color-ts-set-signature: #fafafa;
+    --color-ts-type-alias: #fafafa;
+  }
+}
+
+/* ---------- typography ---------- */
+html {
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@supports (font-variation-settings: normal) {
+  body { font-family: 'Inter var', -apple-system, BlinkMacSystemFont, sans-serif; }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+h1 { font-size: 2rem; line-height: 1.2; }
+h2 { font-size: 1.4rem; margin-top: 2.5rem; }
+h3 { font-size: 1.1rem; margin-top: 1.75rem; }
+h4 { font-size: 0.95rem; color: var(--color-text-aside); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+
+/* ---------- header / toolbar ---------- */
+.tsd-page-toolbar {
+  background: color-mix(in srgb, var(--color-background) 80%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--color-accent);
+}
+
+.tsd-page-toolbar .title {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-size: 0.95rem;
+}
+
+.tsd-page-toolbar .title:hover { text-decoration: none; opacity: 0.7; }
+
+#tsd-toolbar-links {
+  display: flex;
+  gap: 1.25rem;
+  margin-left: auto;
+  margin-right: 1rem;
+}
+
+#tsd-toolbar-links a {
+  font-size: 0.85rem;
+  color: var(--color-text-aside);
+  transition: color 0.15s ease;
+}
+
+#tsd-toolbar-links a:hover { color: var(--color-text); opacity: 1; }
+
+/* ---------- main content ---------- */
+.container-main { padding-top: 2rem; }
+
+.tsd-page-title h1 { font-size: 2.25rem; margin-bottom: 0.5rem; }
+
+/* hide auto page-title h1 when readme provides its own h1 */
+.tsd-page-title:has(+ .tsd-panel.tsd-typography h1:first-child) { display: none; }
+
+.tsd-panel { border: none; background: transparent; }
+
+/* "Const" / "Function" etc. labels */
+.tsd-tag, .tsd-flag {
+  display: inline-block;
+  border: 1px solid var(--color-accent);
+  border-radius: 5px;
+  padding: 1px 8px;
+  margin: 0 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-text-aside);
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* ---------- links ---------- */
+a {
+  transition: opacity 0.15s ease;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+a:hover { opacity: 0.65; }
+
+.tsd-typography a {
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent);
+}
+
+.tsd-typography a:hover { text-decoration-color: var(--color-text); opacity: 1; }
+
+/* ---------- code blocks ---------- */
+code, pre {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-feature-settings: 'liga' 0, 'calt' 0;
+}
+
+.tsd-typography code:not(pre code) {
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-accent);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.85em;
+}
+
+pre {
+  border-radius: 8px;
+  border: 1px solid var(--color-accent);
+  background: var(--color-background-secondary);
+  padding: 14px 16px;
+  box-shadow: none;
+  position: relative;
+  overflow-x: auto;
+  font-size: 0.85em;
+}
+
+pre code { background: transparent; border: none; padding: 0; }
+
+pre > button {
+  background: var(--color-background);
+  color: var(--color-text-aside);
+  border: 1px solid var(--color-accent);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  top: 8px;
+  right: 8px;
+}
+
+pre:hover > button { opacity: 1; }
+pre > button:hover { color: var(--color-text); }
+
+/* ---------- sidebar ---------- */
+.col-sidebar { font-size: 0.875rem; }
+
+.site-menu, .page-menu { padding-top: 1rem; }
+
+.tsd-navigation a,
+.tsd-page-navigation a {
+  border-radius: 5px;
+  padding: 4px 10px;
+  transition: background 0.12s ease, color 0.12s ease;
+  color: var(--color-text-aside);
+}
+
+.tsd-navigation a:hover,
+.tsd-page-navigation a:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text);
+  opacity: 1;
+  text-decoration: none;
+}
+
+.tsd-navigation a.current {
+  background: var(--color-active-menu-item);
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.tsd-accordion-summary {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.tsd-accordion-summary h3 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-aside);
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ---------- icons ---------- */
+.tsd-kind-icon {
+  opacity: 0.9;
+}
+
+/* ---------- members / signatures ---------- */
+.tsd-signature,
+.tsd-signatures .tsd-signature {
+  border-radius: 8px;
+  border: 1px solid var(--color-accent);
+  background: var(--color-background-secondary);
+  padding: 12px 16px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+}
+
+.tsd-member {
+  border-bottom: 1px solid var(--color-accent);
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.tsd-member:last-child { border-bottom: none; }
+
+.tsd-parameters,
+.tsd-type-parameters {
+  border-left: 2px solid var(--color-accent);
+  padding-left: 1rem;
+  margin-left: 0;
+}
+
+.tsd-anchor-link { scroll-margin-top: 5rem; }
+
+.tsd-anchor-icon {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+h1:hover .tsd-anchor-icon,
+h2:hover .tsd-anchor-icon,
+h3:hover .tsd-anchor-icon,
+h4:hover .tsd-anchor-icon { opacity: 0.5; }
+
+/* breadcrumb */
+.tsd-breadcrumb {
+  font-size: 0.8rem;
+  color: var(--color-text-aside);
+  margin-bottom: 0.5rem;
+}
+
+.tsd-breadcrumb a { color: var(--color-text-aside); }
+.tsd-breadcrumb a:hover { color: var(--color-text); opacity: 1; }
+
+/* ---------- search ---------- */
+#tsd-search-trigger {
+  border: 1px solid var(--color-accent);
+  border-radius: 6px;
+  padding: 4px 10px;
+  transition: border-color 0.15s ease;
+}
+
+#tsd-search-trigger:hover { border-color: var(--color-text-aside); }
+
+#tsd-search {
+  border-radius: 12px;
+  border: 1px solid var(--color-accent);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.15);
+}
+
+/* ---------- footer ---------- */
+footer {
+  border-top: 1px solid var(--color-accent);
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  color: var(--color-text-aside);
+  font-size: 0.8rem;
+}
+
+.tsd-generator { text-align: center; opacity: 0.6; }
+
+/* ---------- misc ---------- */
+* { scrollbar-width: thin; scrollbar-color: var(--color-accent) transparent; }
+
+hr { border: none; border-top: 1px solid var(--color-accent); margin: 2rem 0; }
+
+/* badges (img tags in readme) */
+.tsd-typography p img { margin-right: 4px; vertical-align: middle; }
+
+/* tables */
+.tsd-typography table {
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.tsd-typography th, .tsd-typography td {
+  border: 1px solid var(--color-accent);
+  padding: 6px 10px;
+}
+.tsd-typography th {
+  background: var(--color-background-secondary);
+  font-weight: 600;
+}

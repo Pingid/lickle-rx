@@ -144,13 +144,17 @@ export const observable = <T, E = unknown>(cb: (observer: Observer<T, E>) => Uns
  * })
  * ```
  */
+const noop = () => {}
+const defaultError = (e: unknown) => console.error('Uncaught Observable Error:', e)
+
 export const subscribe = <T, E = unknown>(
   observable: Observable<T, E>,
   observer: Partial<Observer<T, E>> | ((value: T) => void),
-): Unsubscribe =>
-  observable({
-    next: () => {},
-    error: (e) => console.error('Uncaught Observable Error:', e),
-    complete: () => {},
-    ...(typeof observer === 'function' ? { next: observer } : observer),
+): Unsubscribe => {
+  const isFn = typeof observer === 'function'
+  return observable({
+    next: isFn ? observer : (observer.next ?? noop),
+    error: (isFn ? defaultError : (observer.error ?? defaultError)) as Observer<T, E>['error'],
+    complete: isFn ? noop : (observer.complete ?? noop),
   })
+}

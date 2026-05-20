@@ -2,6 +2,7 @@ node_modules
 lib
 .npmrc
 .bench-cache
+.vscode
 
 # No dependencies so no lock file requirement
 package-lock.json

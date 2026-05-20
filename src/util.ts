@@ -250,7 +250,15 @@ export type Unary<T, R> = (source: T) => R
  * cleanup() // unsubscribes from both
  * ```
  */
+const callAll = (xs: any[]): void => {
+  for (let i = 0; i < xs.length; i++) {
+    const x = xs[i]
+    if (typeof x === 'function') x()
+    else if (Array.isArray(x)) callAll(x)
+  }
+}
+
 export const dispose =
   (...args: Unsubscribe[] | Unsubscribe[][] | Unsubscribe[][][]): Unsubscribe =>
   () =>
-    (args.flat(Infinity) as Unsubscribe[]).forEach((x) => x())
+    callAll(args)
