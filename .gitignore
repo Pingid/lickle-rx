@@ -8,5 +8,5 @@ lib
 package-lock.json
 yarn.lock
 bun.lock
-docs
+docs/dist
 bench/core/snapshots

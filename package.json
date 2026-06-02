@@ -20,10 +20,40 @@
       "import": "./lib/esm/index.js",
       "require": "./lib/cjs/index.js"
     },
-    "./*": {
-      "types": "./lib/ts/*.d.ts",
-      "import": "./lib/esm/*.js",
-      "require": "./lib/cjs/*.js"
+    "./browser": {
+      "types": "./lib/ts/browser.d.ts",
+      "import": "./lib/esm/browser.js",
+      "require": "./lib/cjs/browser.js"
+    },
+    "./combinator": {
+      "types": "./lib/ts/combinator.d.ts",
+      "import": "./lib/esm/combinator.js",
+      "require": "./lib/cjs/combinator.js"
+    },
+    "./constructor": {
+      "types": "./lib/ts/constructor.d.ts",
+      "import": "./lib/esm/constructor.js",
+      "require": "./lib/cjs/constructor.js"
+    },
+    "./observable": {
+      "types": "./lib/ts/observable.d.ts",
+      "import": "./lib/esm/observable.js",
+      "require": "./lib/cjs/observable.js"
+    },
+    "./operator": {
+      "types": "./lib/ts/operator.d.ts",
+      "import": "./lib/esm/operator.js",
+      "require": "./lib/cjs/operator.js"
+    },
+    "./scheduler": {
+      "types": "./lib/ts/scheduler.d.ts",
+      "import": "./lib/esm/scheduler.js",
+      "require": "./lib/cjs/scheduler.js"
+    },
+    "./subject": {
+      "types": "./lib/ts/subject.d.ts",
+      "import": "./lib/esm/subject.js",
+      "require": "./lib/cjs/subject.js"
     }
   },
   "files": [
@@ -52,21 +82,21 @@
     "esm": "tsc -p ./tsconfig.esm.json",
     "cjs": "tsc -p ./tsconfig.cjs.json > /dev/null 2>&1 || true",
     "typecheck": "tsc --noEmit",
+    "docs:build": "pnpm ldocs build",
     "bench": "tsx bench/core/bench.ts",
     "bench:save": "tsx bench/cmp.ts save",
-    "bench:diff": "tsx bench/cmp.ts diff",
-    "docs": "typedoc"
+    "bench:diff": "tsx bench/cmp.ts diff"
   },
   "dependencies": {
     "@lickle/dom": "^0.1.0",
     "symbol-observable": "^4.0.0"
   },
   "devDependencies": {
+    "@lickle/docs": "0.0.0-dev.18",
     "jsr": "^0.14.3",
     "mitata": "^1.0.34",
     "prettier": "^3.8.3",
     "tsx": "^4.22.3",
-    "typedoc": "^0.28.19",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   },

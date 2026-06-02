@@ -119,10 +119,7 @@ describe('fromPromise()', () => {
   })
 
   it('transforms errors with onError', async () => {
-    const obs = fromPromise(
-      Promise.reject(new Error('original')),
-      () => 'transformed',
-    )
+    const obs = fromPromise(Promise.reject(new Error('original')), () => 'transformed')
     const results = collect(obs)
     await tick()
     expect(results.error).toHaveBeenCalledWith('transformed')

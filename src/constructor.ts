@@ -196,8 +196,8 @@ export const interval = (period: number, scheduler: Scheduler = asyncScheduler):
 /**
  * Creates an observable that emits after a delay, optionally repeating.
  *
- * @param delay - Initial delay in milliseconds
- * @param period - Optional period for repeating emissions. If omitted, completes after first emission.
+ * @param delay {number} - Initial delay in milliseconds
+ * @param period {number} - Optional period for repeating emissions. If omitted, completes after first emission.
  * @param scheduler - Scheduler to use for timing. Defaults to {@link asyncScheduler}.
  *   Use {@link animationFrameScheduler} for smooth UI updates, or {@link createVirtualScheduler}
  *   for testing.
